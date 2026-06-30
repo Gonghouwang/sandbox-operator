@@ -8,19 +8,19 @@ type Credential struct {
 }
 
 type Template struct {
-	ID                           string `json:"id"`
-	TemplateID                   string `json:"templateID,omitempty"`
-	TemplateName                 string `json:"name"`
-	Description                  string `json:"description"`
-	TemplateCategory             string `json:"access"`
-	TemplateType                 string `json:"type"`
-	Image                        string `json:"image"`
-	ImageSource                  string `json:"imageSource"`
-	CredentialServer             string `json:"credentialServer"`
-	CredentialUsername           string `json:"credentialUname"`
-	CredentialPassword           string `json:"credentialPwd"`
-	Command                      string `json:"startCmd"`
-	Ports                        []int
+	ID                           string            `json:"id"`
+	TemplateID                   string            `json:"templateID,omitempty"`
+	TemplateName                 string            `json:"name"`
+	Description                  string            `json:"description"`
+	TemplateCategory             string            `json:"access"`
+	TemplateType                 string            `json:"type"`
+	Image                        string            `json:"image"`
+	ImageSource                  string            `json:"imageSource"`
+	CredentialServer             string            `json:"credentialServer"`
+	CredentialUsername           string            `json:"credentialUname"`
+	CredentialPassword           string            `json:"credentialPwd"`
+	Command                      string            `json:"startCmd"`
+	Ports                        []int             `json:"ports"`
 	CPU                          int               `json:"cpuCount"`
 	Memory                       int               `json:"memoryMB"`
 	DiskSizeMB                   int64             `json:"diskSizeMB,omitempty"`
@@ -34,15 +34,15 @@ type Template struct {
 	UpdatedAt                    string            `json:"updatedAt"`
 	KlogProjectName              string            `json:"-"`
 	KlogPoolName                 string            `json:"-"`
-	RemainingInstanceQuota       int
-	RemainingSystemInstanceQuota int
-	PreheatedInstanceNumber      int
-	KS3MountConfig               *MountConfig `json:"ks3MountConfig"`
-	KPFSMountConfig              *MountConfig `json:"kpfsMountConfig"`
-	KlogConfig                   *KlogConfig  `json:"klogConfig"`
-	SkillConfig                  *SkillConfig `json:"skillConfig,omitempty"`
-	DataDisks                    []DataDisk   `json:"dataDisks,omitempty"`
-	CredentialAccessKeyIDMasked  string
+	RemainingInstanceQuota       int               `json:"remainingInstanceQuota"`
+	RemainingSystemInstanceQuota int               `json:"remainingSystemInstanceQuota"`
+	PreheatedInstanceNumber      int               `json:"preheatedInstanceNumber"`
+	KS3MountConfig               *MountConfig      `json:"ks3MountConfig"`
+	KPFSMountConfig              *MountConfig      `json:"kpfsMountConfig"`
+	KlogConfig                   *KlogConfig       `json:"klogConfig"`
+	SkillConfig                  *SkillConfig      `json:"skillConfig,omitempty"`
+	DataDisks                    []DataDisk        `json:"dataDisks,omitempty"`
+	CredentialAccessKeyIDMasked  string            `json:"credentialAccessKeyIDMasked"`
 }
 
 func (t Template) Identifier() string {
@@ -56,7 +56,7 @@ type Sandbox struct {
 	SandboxID           string `json:"sandboxID"`
 	TemplateID          string `json:"templateID"`
 	TemplateType        string `json:"templateType"`
-	TemplateCategory    string
+	TemplateCategory    string `json:"templateCategory"`
 	Status              string `json:"state"`
 	Timeout             int    `json:"timeout"`
 	CreateTime          string `json:"startedAt"`
@@ -101,9 +101,9 @@ type MountPoint struct {
 }
 
 type CustomConfiguration struct {
-	ImageURL string
-	Port     int
-	Command  string
+	ImageURL string `json:"imageUrl"`
+	Port     int    `json:"port"`
+	Command  string `json:"startCmd"`
 }
 
 type URLs struct {
@@ -126,6 +126,20 @@ type KlogConfig struct {
 	Rules             []string `json:"rules,omitempty"`
 }
 
+type SkillConfig struct {
+	Enable            bool   `json:"enable,omitempty"`
+	SpaceID           string `json:"spaceId,omitempty"`
+	EnablePublicSkill bool   `json:"enablePublicSkill,omitempty"`
+}
+
+type DataDisk struct {
+	Name               string `json:"name,omitempty"`
+	Type               string `json:"type,omitempty"`
+	SizeMB             int64  `json:"sizeMB,omitempty"`
+	DeleteWithInstance bool   `json:"deleteWithInstance,omitempty"`
+	Path               string `json:"path,omitempty"`
+}
+
 type CreateTemplateRequest struct {
 	TemplateName          string            `json:"name,omitempty"`
 	Alias                 string            `json:"alias,omitempty"`
@@ -142,6 +156,7 @@ type CreateTemplateRequest struct {
 	Ports                 []int             `json:"ports,omitempty"`
 	CPU                   int               `json:"cpuCount,omitempty"`
 	Memory                int               `json:"memoryMB,omitempty"`
+	DiskSizeMB            int64             `json:"diskSizeMB,omitempty"`
 	Envs                  map[string]string `json:"envs,omitempty"`
 	NetworkConfig         *NetworkConfig    `json:"networkConfig,omitempty"`
 	TargetPoolSize        int               `json:"targetPoolSize,omitempty"`
@@ -150,6 +165,8 @@ type CreateTemplateRequest struct {
 	KS3MountConfig        *MountConfig      `json:"ks3MountConfig,omitempty"`
 	KPFSMountConfig       *MountConfig      `json:"kpfsMountConfig,omitempty"`
 	KlogConfig            *KlogConfig       `json:"klogConfig,omitempty"`
+	SkillConfig           *SkillConfig      `json:"skillConfig,omitempty"`
+	DataDisks             []DataDisk        `json:"dataDisks,omitempty"`
 }
 
 type CreateTemplateResponse struct {
@@ -177,7 +194,7 @@ type StartSandboxResponse struct {
 	TemplateID         string `json:"templateID"`
 	Token              string `json:"envdAccessToken"`
 	TrafficAccessToken string `json:"trafficAccessToken"`
-	Timeout            int
+	Timeout            int    `json:"timeout"`
 }
 
 type ListTemplatesRequest struct {

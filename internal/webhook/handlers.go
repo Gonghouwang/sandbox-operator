@@ -250,14 +250,35 @@ func (h *Handler) templateCredentials(ctx context.Context, obj *sandboxv1.Sandbo
 		return nil, mapper.RuntimeCredentials{}, err
 	}
 	var runtimeCreds mapper.RuntimeCredentials
-	if obj.Spec.Ks3MountConfig != nil {
-		runtimeCreds.KS3, err = h.Credentials.GetRuntime(ctx, obj.Namespace, obj.Spec.Ks3MountConfig.CredentialRef)
-		if err != nil {
-			return nil, mapper.RuntimeCredentials{}, err
+	if obj.Spec.Template != nil {
+		tpl := obj.Spec.Template.Spec
+		if tpl.Image != nil && tpl.Image.RegistryCredentialRef != nil {
+			runtimeCreds.Registry, err = h.Credentials.GetRegistry(ctx, obj.Namespace, tpl.Image.RegistryCredentialRef)
+			if err != nil {
+				return nil, mapper.RuntimeCredentials{}, err
+			}
+		}
+		runtimeCreds.KS3ByName = map[string]*credentials.RuntimeCredential{}
+		runtimeCreds.KPFSByName = map[string]*credentials.RuntimeCredential{}
+		for _, volume := range tpl.Volumes {
+			switch {
+			case volume.KS3 != nil && volume.KS3.CredentialRef != nil:
+				vc, err := h.Credentials.GetRuntime(ctx, obj.Namespace, volume.KS3.CredentialRef)
+				if err != nil {
+					return nil, mapper.RuntimeCredentials{}, err
+				}
+				runtimeCreds.KS3ByName[volume.KS3.CredentialRef.Name] = vc
+			case volume.KPFS != nil && volume.KPFS.CredentialRef != nil:
+				vc, err := h.Credentials.GetRuntime(ctx, obj.Namespace, volume.KPFS.CredentialRef)
+				if err != nil {
+					return nil, mapper.RuntimeCredentials{}, err
+				}
+				runtimeCreds.KPFSByName[volume.KPFS.CredentialRef.Name] = vc
+			}
 		}
 	}
-	if obj.Spec.KpfsMountConfig != nil {
-		runtimeCreds.KPFS, err = h.Credentials.GetRuntime(ctx, obj.Namespace, obj.Spec.KpfsMountConfig.CredentialRef)
+	if obj.Spec.Observability != nil && obj.Spec.Observability.Logging != nil {
+		runtimeCreds.Klog, err = h.Credentials.GetRuntime(ctx, obj.Namespace, obj.Spec.Observability.Logging.CredentialRef)
 		if err != nil {
 			return nil, mapper.RuntimeCredentials{}, err
 		}
@@ -290,11 +311,8 @@ func (h *Handler) validateTemplate(obj *sandboxv1.SandboxTemplate) error {
 	if obj.Name == "" {
 		return fmt.Errorf("metadata.name is required")
 	}
-	if obj.Spec.Category == "" || obj.Spec.Type == "" {
-		return fmt.Errorf("spec.category and spec.type are required")
-	}
-	if obj.Spec.Preheat != nil && obj.Spec.InstanceQuota > 0 && obj.Spec.Preheat.Number > obj.Spec.InstanceQuota {
-		return fmt.Errorf("spec.preheat.number cannot exceed spec.instanceQuota")
+	if obj.Spec.Access == "" || obj.Spec.Type == "" {
+		return fmt.Errorf("spec.access and spec.type are required")
 	}
 	return nil
 }

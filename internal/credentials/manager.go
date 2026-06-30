@@ -2,8 +2,11 @@ package credentials
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -38,6 +41,13 @@ type RuntimeCredential struct {
 	SecretAccessKey string
 	Token           string
 	SecretName      string
+}
+
+type RegistryCredential struct {
+	Server     string
+	Username   string
+	Password   string
+	SecretName string
 }
 
 type OpenAPICredentialNotFoundError struct {
@@ -109,4 +119,61 @@ func (m *Manager) GetRuntime(ctx context.Context, namespace string, ref *sandbox
 		Token:           string(secret.Data[KeyRuntimeToken]),
 		SecretName:      ref.Name,
 	}, nil
+}
+
+func (m *Manager) GetRegistry(ctx context.Context, namespace string, ref *sandboxv1.RegistryCredentialReference) (*RegistryCredential, error) {
+	if ref == nil || ref.Name == "" {
+		return nil, nil
+	}
+	var secret corev1.Secret
+	if err := m.client.Get(ctx, client.ObjectKey{Namespace: namespace, Name: ref.Name}, &secret); err != nil {
+		return nil, err
+	}
+	server := ref.Server
+	username := string(secret.Data["username"])
+	password := string(secret.Data["password"])
+	if raw := secret.Data[corev1.DockerConfigJsonKey]; len(raw) > 0 {
+		u, p, s := dockerConfigCredential(raw, server)
+		if username == "" {
+			username = u
+		}
+		if password == "" {
+			password = p
+		}
+		if server == "" {
+			server = s
+		}
+	}
+	return &RegistryCredential{Server: server, Username: username, Password: password, SecretName: ref.Name}, nil
+}
+
+func dockerConfigCredential(raw []byte, preferredServer string) (string, string, string) {
+	var cfg struct {
+		Auths map[string]struct {
+			Username string `json:"username"`
+			Password string `json:"password"`
+			Auth     string `json:"auth"`
+		} `json:"auths"`
+	}
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		return "", "", ""
+	}
+	for server, auth := range cfg.Auths {
+		if preferredServer != "" && server != preferredServer {
+			continue
+		}
+		username, password := auth.Username, auth.Password
+		if (username == "" || password == "") && auth.Auth != "" {
+			decoded, err := base64.StdEncoding.DecodeString(auth.Auth)
+			if err == nil {
+				parts := strings.SplitN(string(decoded), ":", 2)
+				if len(parts) == 2 {
+					username = parts[0]
+					password = parts[1]
+				}
+			}
+		}
+		return username, password, server
+	}
+	return "", "", ""
 }

@@ -1,6 +1,9 @@
 package v1alpha1
 
-import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+import (
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
 
 type DeletionPolicy string
 
@@ -36,6 +39,11 @@ type LocalObjectReference struct {
 	Name string `json:"name"`
 }
 
+type RegistryCredentialReference struct {
+	Name   string `json:"name"`
+	Server string `json:"server,omitempty"`
+}
+
 type OpenAPICredentialReference struct {
 	Name string `json:"name"`
 }
@@ -52,6 +60,109 @@ type ClaimReference struct {
 type EnvVar struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
+}
+
+type RuntimeTemplate struct {
+	Spec RuntimeTemplateSpec `json:"spec,omitempty"`
+}
+
+type RuntimeTemplateSpec struct {
+	Image         *TemplateImageSpec    `json:"image,omitempty"`
+	Resources     *RuntimeResourceSpec  `json:"resources,omitempty"`
+	Ports         []ContainerPortSpec   `json:"ports,omitempty"`
+	StartCommand  string                `json:"startCommand,omitempty"`
+	Env           []TemplateEnvVar      `json:"env,omitempty"`
+	Volumes       []TemplateVolume      `json:"volumes,omitempty"`
+	NetworkConfig *OpenAPINetworkConfig `json:"networkConfig,omitempty"`
+	SkillConfig   *SkillConfig          `json:"skillConfig,omitempty"`
+	DataDisks     []DataDiskSpec        `json:"dataDisks,omitempty"`
+}
+
+type TemplateImageSpec struct {
+	Source                string                       `json:"source,omitempty"`
+	Image                 string                       `json:"image,omitempty"`
+	RegistryCredentialRef *RegistryCredentialReference `json:"registryCredentialRef,omitempty"`
+}
+
+type RuntimeResourceSpec struct {
+	CPU    string            `json:"cpu,omitempty"`
+	Memory resource.Quantity `json:"memory,omitempty"`
+	Disk   resource.Quantity `json:"disk,omitempty"`
+}
+
+type ContainerPortSpec struct {
+	Name          string `json:"name,omitempty"`
+	ContainerPort int    `json:"containerPort,omitempty"`
+	Protocol      string `json:"protocol,omitempty"`
+}
+
+type TemplateEnvVar struct {
+	Name  string `json:"name"`
+	Value string `json:"value,omitempty"`
+}
+
+type TemplateVolume struct {
+	Name      string            `json:"name,omitempty"`
+	Type      string            `json:"type,omitempty"`
+	MountPath string            `json:"mountPath,omitempty"`
+	ReadOnly  bool              `json:"readOnly,omitempty"`
+	KS3       *KS3VolumeSource  `json:"ks3,omitempty"`
+	KPFS      *KPFSVolumeSource `json:"kpfs,omitempty"`
+}
+
+type KS3VolumeSource struct {
+	Bucket        string                `json:"bucket,omitempty"`
+	Path          string                `json:"path,omitempty"`
+	CredentialRef *LocalObjectReference `json:"credentialRef,omitempty"`
+}
+
+type KPFSVolumeSource struct {
+	FileSystem    string                `json:"fileSystem,omitempty"`
+	Path          string                `json:"path,omitempty"`
+	CredentialRef *LocalObjectReference `json:"credentialRef,omitempty"`
+}
+
+type OpenAPINetworkConfig struct {
+	EnablePublic       bool   `json:"enablePublic,omitempty"`
+	EnablePrivate      bool   `json:"enablePrivate,omitempty"`
+	CIDRBlock          string `json:"cidrBlock,omitempty"`
+	ChangeDefaultRoute bool   `json:"changeDefaultRoute,omitempty"`
+	UserVpcID          string `json:"userVpcId,omitempty"`
+	UserSgID           string `json:"userSgId,omitempty"`
+	UserSubnetID       string `json:"userSubnetId,omitempty"`
+	AvailabilityZone   string `json:"availabilityZone,omitempty"`
+}
+
+type SkillConfig struct {
+	Enable            bool     `json:"enable,omitempty"`
+	SpaceIDs          []string `json:"spaceIds,omitempty"`
+	EnablePublicSkill bool     `json:"enablePublicSkill,omitempty"`
+}
+
+type DataDiskSpec struct {
+	Name               string `json:"name,omitempty"`
+	Type               string `json:"type,omitempty"`
+	SizeMB             int64  `json:"sizeMB,omitempty"`
+	DeleteWithInstance bool   `json:"deleteWithInstance,omitempty"`
+	Path               string `json:"path,omitempty"`
+}
+
+type TemplatePoolSpec struct {
+	TargetSize int `json:"targetSize,omitempty"`
+}
+
+type ObservabilitySpec struct {
+	Logging *LoggingSpec `json:"logging,omitempty"`
+}
+
+type LoggingSpec struct {
+	Enabled           bool                  `json:"enabled,omitempty"`
+	ProjectName       string                `json:"projectName,omitempty"`
+	Endpoint          string                `json:"endpoint,omitempty"`
+	ContainerPoolName string                `json:"containerPoolName,omitempty"`
+	HostPoolName      string                `json:"hostPoolName,omitempty"`
+	Rules             []string              `json:"rules,omitempty"`
+	CredentialRef     *LocalObjectReference `json:"credentialRef,omitempty"`
 }
 
 type ResourceSpec struct {

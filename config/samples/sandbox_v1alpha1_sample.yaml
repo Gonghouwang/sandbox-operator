@@ -17,20 +17,84 @@ kind: SandboxTemplate
 metadata:
   name: custom-app
   namespace: sandbox-demo
+  labels:
+    owner: console
 spec:
   description: "custom app runtime"
-  category: Private
   type: Custom
-  image:
-    source: Public
-    imageUrl: "hub.kce.ksyun.com/sandbox/aio"
-    imageTag: "v20260608"
-  command: "python /home/user/app.py"
-  ports: [8080]
-  resources:
-    cpu: 2
-    memoryGB: 4
-  instanceQuota: 10
+  access: Private
+  template:
+    spec:
+      image:
+        source: Public
+        image: "hub.kce.ksyun.com/sandbox/aio:v20260608"
+        registryCredentialRef:
+          name: image-credential
+          server: hub.kce.ksyun.com
+      resources:
+        cpu: "2"
+        memory: 4096Mi
+        disk: 20480Mi
+      ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+      startCommand: "python /home/user/app.py"
+      env:
+        - name: APP_ENV
+          value: "prod"
+      volumes:
+        - name: ks3-datasets
+          type: KS3
+          mountPath: /mnt/ks3/datasets
+          readOnly: true
+          ks3:
+            bucket: bucket-a
+            path: /datasets
+            credentialRef:
+              name: ks3-credential
+        - name: kpfs-kcitest1
+          type: KPFS
+          mountPath: /mnt/kpfs/kcitest1
+          readOnly: false
+          kpfs:
+            fileSystem: kcitest1
+            path: /
+            credentialRef:
+              name: kpfs-credential
+      networkConfig:
+        enablePublic: true
+        enablePrivate: true
+        cidrBlock: "10.0.2.0/24"
+        changeDefaultRoute: true
+        userVpcId: "vpc-xxxx"
+        userSgId: "sg-xxxx"
+        userSubnetId: "subnet-xxxx"
+      skillConfig:
+        enable: true
+        spaceIds:
+          - space-abc123
+          - space-def456
+        enablePublicSkill: false
+      dataDisks:
+        - name: data-0
+          type: ESSD_PL0
+          sizeMB: 51200
+          deleteWithInstance: true
+          path: /root/tmp
+  pool:
+    targetSize: 1
+  observability:
+    logging:
+      enabled: true
+      projectName: sandbox-log
+      endpoint: "https://klog-cn-beijing.ksyun.com"
+      containerPoolName: sandbox-container
+      hostPoolName: sandbox-host
+      rules:
+        - "/home/user/*.log"
+      credentialRef:
+        name: klog-credential
   deletionPolicy: Delete
 ---
 apiVersion: sandbox.kce.ksyun.com/v1alpha1

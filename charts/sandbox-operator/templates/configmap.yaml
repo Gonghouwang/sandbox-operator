@@ -12,6 +12,7 @@ data:
   POLL_INTERVAL: {{ .Values.config.pollInterval | quote }}
   POLL_PAGE_SIZE: {{ .Values.config.pollPageSize | quote }}
   MAX_CONCURRENT_NAMESPACES: {{ .Values.config.maxConcurrentNamespaces | quote }}
+  SYNC_NAMESPACES: {{ .Values.config.syncNamespaces | quote }}
   METRICS_BIND_ADDRESS: {{ .Values.config.metricsBindAddress | quote }}
   HEALTH_PROBE_BIND_ADDRESS: {{ .Values.config.healthProbeBindAddress | quote }}
   LEADER_ELECT: {{ .Values.config.leaderElect | quote }}

@@ -5,6 +5,11 @@ import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName=stpl
+// +kubebuilder:printcolumn:name="TemplateID",type=string,JSONPath=".status.templateID"
+// +kubebuilder:printcolumn:name="Type",type=string,JSONPath=".spec.type"
+// +kubebuilder:printcolumn:name="Access",type=string,JSONPath=".spec.access"
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=".status.phase"
+// +kubebuilder:printcolumn:name="Updated",type=date,JSONPath=".status.externalUpdatedAt"
 type SandboxTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -16,19 +21,11 @@ type SandboxTemplate struct {
 type SandboxTemplateSpec struct {
 	OpenAPICredentialRef *OpenAPICredentialReference `json:"openapiCredentialRef,omitempty"`
 	Description          string                      `json:"description,omitempty"`
-	Category             string                      `json:"category,omitempty"`
 	Type                 string                      `json:"type,omitempty"`
-	Image                *ImageSpec                  `json:"image,omitempty"`
-	Command              string                      `json:"command,omitempty"`
-	Ports                []int                       `json:"ports,omitempty"`
-	Resources            *ResourceSpec               `json:"resources,omitempty"`
-	Network              *NetworkSpec                `json:"network,omitempty"`
-	Env                  []EnvVar                    `json:"env,omitempty"`
-	Ks3MountConfig       *MountConfig                `json:"ks3MountConfig,omitempty"`
-	KpfsMountConfig      *MountConfig                `json:"kpfsMountConfig,omitempty"`
-	Klog                 *KlogSpec                   `json:"klog,omitempty"`
-	Preheat              *PreheatSpec                `json:"preheat,omitempty"`
-	InstanceQuota        int                         `json:"instanceQuota,omitempty"`
+	Access               string                      `json:"access,omitempty"`
+	Template             *RuntimeTemplate            `json:"template,omitempty"`
+	Pool                 *TemplatePoolSpec           `json:"pool,omitempty"`
+	Observability        *ObservabilitySpec          `json:"observability,omitempty"`
 	DeletionPolicy       DeletionPolicy              `json:"deletionPolicy,omitempty"`
 }
 

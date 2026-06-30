@@ -37,6 +37,7 @@ spec:
             - --poll-interval=$(POLL_INTERVAL)
             - --poll-page-size=$(POLL_PAGE_SIZE)
             - --max-concurrent-namespaces=$(MAX_CONCURRENT_NAMESPACES)
+            - --sync-namespaces=$(SYNC_NAMESPACES)
             - --metrics-bind-address=$(METRICS_BIND_ADDRESS)
             - --health-probe-bind-address=$(HEALTH_PROBE_BIND_ADDRESS)
           ports:

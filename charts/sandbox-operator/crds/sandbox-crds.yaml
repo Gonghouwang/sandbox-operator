@@ -17,12 +17,21 @@ spec:
       subresources:
         status: {}
       additionalPrinterColumns:
+        - name: Type
+          type: string
+          jsonPath: .spec.type
+        - name: Access
+          type: string
+          jsonPath: .spec.access
         - name: TemplateID
           type: string
           jsonPath: .status.templateID
         - name: Phase
           type: string
           jsonPath: .status.phase
+        - name: Target
+          type: integer
+          jsonPath: .spec.pool.targetSize
         - name: Updated
           type: date
           jsonPath: .status.externalUpdatedAt
@@ -32,6 +41,194 @@ spec:
           properties:
             spec:
               type: object
+              properties:
+                openapiCredentialRef:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                description:
+                  type: string
+                type:
+                  type: string
+                  enum: ["Custom", "CodeInterpreter", "Browser", "AllInOne", "custom", "code", "browser", "AIO"]
+                access:
+                  type: string
+                  enum: ["Private", "Public", "private", "public"]
+                template:
+                  type: object
+                  properties:
+                    spec:
+                      type: object
+                      properties:
+                        image:
+                          type: object
+                          properties:
+                            source:
+                              type: string
+                              enum: ["Public", "Personal", "Enterprise", "public", "personal", "enterprise"]
+                            image:
+                              type: string
+                            registryCredentialRef:
+                              type: object
+                              properties:
+                                name:
+                                  type: string
+                                server:
+                                  type: string
+                        resources:
+                          type: object
+                          properties:
+                            cpu:
+                              type: string
+                            memory:
+                              type: string
+                            disk:
+                              type: string
+                        ports:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              name:
+                                type: string
+                              containerPort:
+                                type: integer
+                                minimum: 1
+                                maximum: 65535
+                              protocol:
+                                type: string
+                                enum: ["TCP", "UDP"]
+                        startCommand:
+                          type: string
+                        env:
+                          type: array
+                          items:
+                            type: object
+                            required: ["name"]
+                            properties:
+                              name:
+                                type: string
+                              value:
+                                type: string
+                        volumes:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              name:
+                                type: string
+                              type:
+                                type: string
+                                enum: ["KS3", "KPFS", "ks3", "kpfs"]
+                              mountPath:
+                                type: string
+                              readOnly:
+                                type: boolean
+                              ks3:
+                                type: object
+                                properties:
+                                  bucket:
+                                    type: string
+                                  path:
+                                    type: string
+                                  credentialRef:
+                                    type: object
+                                    properties:
+                                      name:
+                                        type: string
+                              kpfs:
+                                type: object
+                                properties:
+                                  fileSystem:
+                                    type: string
+                                  path:
+                                    type: string
+                                  credentialRef:
+                                    type: object
+                                    properties:
+                                      name:
+                                        type: string
+                        networkConfig:
+                          type: object
+                          properties:
+                            enablePublic:
+                              type: boolean
+                            enablePrivate:
+                              type: boolean
+                            cidrBlock:
+                              type: string
+                            changeDefaultRoute:
+                              type: boolean
+                            userVpcId:
+                              type: string
+                            userSgId:
+                              type: string
+                            userSubnetId:
+                              type: string
+                            availabilityZone:
+                              type: string
+                        skillConfig:
+                          type: object
+                          properties:
+                            enable:
+                              type: boolean
+                            spaceIds:
+                              type: array
+                              items:
+                                type: string
+                            enablePublicSkill:
+                              type: boolean
+                        dataDisks:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              name:
+                                type: string
+                              type:
+                                type: string
+                              sizeMB:
+                                type: integer
+                                format: int64
+                              deleteWithInstance:
+                                type: boolean
+                              path:
+                                type: string
+                pool:
+                  type: object
+                  properties:
+                    targetSize:
+                      type: integer
+                      minimum: 0
+                observability:
+                  type: object
+                  properties:
+                    logging:
+                      type: object
+                      properties:
+                        enabled:
+                          type: boolean
+                        projectName:
+                          type: string
+                        endpoint:
+                          type: string
+                        containerPoolName:
+                          type: string
+                        hostPoolName:
+                          type: string
+                        rules:
+                          type: array
+                          items:
+                            type: string
+                        credentialRef:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                deletionPolicy:
+                  type: string
+                  enum: ["Delete", "Retain"]
               x-kubernetes-preserve-unknown-fields: true
             status:
               type: object
