@@ -2,7 +2,9 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -37,8 +39,11 @@ func main() {
 	var openapiService string
 	var openapiVersion string
 	var openapiAuthMode string
+	var defaultOpenAPISecretName string
 	var enableLeaderElection bool
 	var pollInterval time.Duration
+	var pollPageSize int
+	var maxConcurrentNamespaces int
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", envOrDefault("METRICS_BIND_ADDRESS", ":8080"), "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", envOrDefault("HEALTH_PROBE_BIND_ADDRESS", ":8081"), "The address the probe endpoint binds to.")
@@ -46,8 +51,11 @@ func main() {
 	flag.StringVar(&openapiService, "openapi-service", envOrDefault("OPENAPI_SERVICE", "aicp"), "Sandbox OpenAPI KOP service name.")
 	flag.StringVar(&openapiVersion, "openapi-version", envOrDefault("OPENAPI_VERSION", "2026-04-01"), "Sandbox OpenAPI version.")
 	flag.StringVar(&openapiAuthMode, "openapi-auth-mode", envOrDefault("OPENAPI_AUTH_MODE", "kop-sigv4"), "OpenAPI auth mode: direct or kop-sigv4.")
+	flag.StringVar(&defaultOpenAPISecretName, "default-openapi-credential-secret", envOrDefault("DEFAULT_OPENAPI_CREDENTIAL_SECRET", credentials.DefaultOpenAPISecretName), "Default Secret name for OpenAPI AK/SK in each business namespace.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", envBoolOrDefault("LEADER_ELECT", false), "Enable leader election for controller manager.")
 	flag.DurationVar(&pollInterval, "poll-interval", envDurationOrDefault("POLL_INTERVAL", 30*time.Second), "OpenAPI polling interval.")
+	flag.IntVar(&pollPageSize, "poll-page-size", envIntOrDefault("POLL_PAGE_SIZE", 200), "OpenAPI list page size.")
+	flag.IntVar(&maxConcurrentNamespaces, "max-concurrent-namespaces", envIntOrDefault("MAX_CONCURRENT_NAMESPACES", 5), "Maximum namespaces to sync concurrently.")
 	opts := zap.Options{Development: true}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
@@ -71,14 +79,16 @@ func main() {
 	openapiClient.Service = openapiService
 	openapiClient.Version = openapiVersion
 	openapiClient.AuthMode = openapiAuthMode
-	credentialManager := credentials.NewManager(mgr.GetClient())
+	credentialManager := credentials.NewManager(mgr.GetClient(), defaultOpenAPISecretName)
 	operationRecorder := operation.NewRecorder(mgr.GetClient())
+	operatorNamespace := envOrDefault("OPERATOR_NAMESPACE", envOrDefault("POD_NAMESPACE", "sandbox-operator-system"))
+	operatorUsername := envOrDefault("OPERATOR_USERNAME", fmt.Sprintf("system:serviceaccount:%s:sandbox-operator", operatorNamespace))
 
-	if err := (&controller.SandboxTemplateReconciler{Client: mgr.GetClient(), Scheme: mgr.GetScheme()}).SetupWithManager(mgr); err != nil {
+	if err := (&controller.SandboxTemplateReconciler{Client: mgr.GetClient(), Scheme: mgr.GetScheme(), Credentials: credentialManager, OpenAPI: openapiClient, Operations: operationRecorder}).SetupWithManager(mgr); err != nil {
 		ctrl.Log.Error(err, "unable to create SandboxTemplate controller")
 		os.Exit(1)
 	}
-	if err := (&controller.SandboxReconciler{Client: mgr.GetClient(), Scheme: mgr.GetScheme()}).SetupWithManager(mgr); err != nil {
+	if err := (&controller.SandboxReconciler{Client: mgr.GetClient(), Scheme: mgr.GetScheme(), Credentials: credentialManager, OpenAPI: openapiClient, Operations: operationRecorder}).SetupWithManager(mgr); err != nil {
 		ctrl.Log.Error(err, "unable to create Sandbox controller")
 		os.Exit(1)
 	}
@@ -87,21 +97,26 @@ func main() {
 		os.Exit(1)
 	}
 
-	mgr.GetWebhookServer().Register("/validate-sandbox-kce-ksyun-com-v1alpha1-sandboxtemplate",
-		&admission.Webhook{Handler: sandboxwebhook.NewHandler(mgr.GetClient(), mgr.GetScheme(), credentialManager, operationRecorder, openapiClient, "SandboxTemplate")})
-	mgr.GetWebhookServer().Register("/validate-sandbox-kce-ksyun-com-v1alpha1-sandbox",
-		&admission.Webhook{Handler: sandboxwebhook.NewHandler(mgr.GetClient(), mgr.GetScheme(), credentialManager, operationRecorder, openapiClient, "Sandbox")})
-	mgr.GetWebhookServer().Register("/validate-sandbox-kce-ksyun-com-v1alpha1-sandboxclaim",
-		&admission.Webhook{Handler: sandboxwebhook.NewHandler(mgr.GetClient(), mgr.GetScheme(), credentialManager, operationRecorder, openapiClient, "SandboxClaim")})
+	templateHandler := sandboxwebhook.NewHandler(mgr.GetClient(), mgr.GetScheme(), credentialManager, operationRecorder, openapiClient, "SandboxTemplate")
+	templateHandler.OperatorUsername = operatorUsername
+	sandboxHandler := sandboxwebhook.NewHandler(mgr.GetClient(), mgr.GetScheme(), credentialManager, operationRecorder, openapiClient, "Sandbox")
+	sandboxHandler.OperatorUsername = operatorUsername
+	claimHandler := sandboxwebhook.NewHandler(mgr.GetClient(), mgr.GetScheme(), credentialManager, operationRecorder, openapiClient, "SandboxClaim")
+	claimHandler.OperatorUsername = operatorUsername
+
+	mgr.GetWebhookServer().Register("/validate-sandbox-kce-ksyun-com-v1alpha1-sandboxtemplate", &admission.Webhook{Handler: templateHandler})
+	mgr.GetWebhookServer().Register("/validate-sandbox-kce-ksyun-com-v1alpha1-sandbox", &admission.Webhook{Handler: sandboxHandler})
+	mgr.GetWebhookServer().Register("/validate-sandbox-kce-ksyun-com-v1alpha1-sandboxclaim", &admission.Webhook{Handler: claimHandler})
 
 	poller := &controller.Poller{
-		Client:        mgr.GetClient(),
-		Credentials:   credentialManager,
-		OpenAPI:       openapiClient,
-		Operations:    operationRecorder,
-		Interval:      pollInterval,
-		PageSize:      100,
-		AdoptExternal: true,
+		Client:                  mgr.GetClient(),
+		Credentials:             credentialManager,
+		OpenAPI:                 openapiClient,
+		Operations:              operationRecorder,
+		Interval:                pollInterval,
+		PageSize:                pollPageSize,
+		MaxConcurrentNamespaces: maxConcurrentNamespaces,
+		AdoptExternal:           true,
 	}
 	if err := mgr.Add(poller); err != nil {
 		ctrl.Log.Error(err, "unable to add poller")
@@ -148,6 +163,18 @@ func envDurationOrDefault(key string, defaultValue time.Duration) time.Duration 
 		return defaultValue
 	}
 	parsed, err := time.ParseDuration(value)
+	if err != nil {
+		return defaultValue
+	}
+	return parsed
+}
+
+func envIntOrDefault(key string, defaultValue int) int {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	parsed, err := strconv.Atoi(value)
 	if err != nil {
 		return defaultValue
 	}

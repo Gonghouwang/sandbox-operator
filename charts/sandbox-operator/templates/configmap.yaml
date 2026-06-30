@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sandbox-operator-config
+  namespace: {{ .Values.namespace }}
+data:
+  OPENAPI_BASE_URL: {{ .Values.config.openapiBaseURL | quote }}
+  OPENAPI_AUTH_MODE: {{ .Values.config.openapiAuthMode | quote }}
+  OPENAPI_SERVICE: {{ .Values.config.openapiService | quote }}
+  OPENAPI_VERSION: {{ .Values.config.openapiVersion | quote }}
+  DEFAULT_OPENAPI_CREDENTIAL_SECRET: {{ .Values.config.defaultOpenAPICredentialSecret | quote }}
+  POLL_INTERVAL: {{ .Values.config.pollInterval | quote }}
+  POLL_PAGE_SIZE: {{ .Values.config.pollPageSize | quote }}
+  MAX_CONCURRENT_NAMESPACES: {{ .Values.config.maxConcurrentNamespaces | quote }}
+  METRICS_BIND_ADDRESS: {{ .Values.config.metricsBindAddress | quote }}
+  HEALTH_PROBE_BIND_ADDRESS: {{ .Values.config.healthProbeBindAddress | quote }}
+  LEADER_ELECT: {{ .Values.config.leaderElect | quote }}

@@ -144,11 +144,6 @@ type StartSandboxResponse struct {
 	Timeout    int
 }
 
-type UpdateSandboxRequest struct {
-	SandboxID string
-	Timeout   int
-}
-
 type ListTemplatesRequest struct {
 	PageNum  int
 	PageSize int
@@ -167,8 +162,4 @@ type TemplateList struct {
 type SandboxList struct {
 	Items []Sandbox
 	Total int
-}
-
-type SandboxToken struct {
-	Token string
 }

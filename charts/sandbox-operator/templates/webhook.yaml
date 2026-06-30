@@ -1,8 +1,25 @@
+{{- $caBundle := .Values.webhook.caBundle -}}
+{{- if and (not .Values.certManager.enabled) .Values.webhook.selfSigned.enabled }}
+{{- $serviceDNS := printf "sandbox-operator-webhook.%s.svc" .Values.namespace -}}
+{{- $ca := genCA "sandbox-operator-webhook-ca" 3650 -}}
+{{- $cert := genSignedCert $serviceDNS nil (list "sandbox-operator-webhook" (printf "sandbox-operator-webhook.%s" .Values.namespace) $serviceDNS (printf "%s.cluster.local" $serviceDNS)) 3650 $ca -}}
+{{- $caBundle = ($ca.Cert | b64enc) -}}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Values.webhook.tlsSecretName }}
+  namespace: {{ .Values.namespace }}
+type: kubernetes.io/tls
+data:
+  tls.crt: {{ $cert.Cert | b64enc }}
+  tls.key: {{ $cert.Key | b64enc }}
+---
+{{- end }}
 apiVersion: v1
 kind: Service
 metadata:
   name: sandbox-operator-webhook
-  namespace: sandbox-operator-system
+  namespace: {{ .Values.namespace }}
 spec:
   selector:
     app.kubernetes.io/name: sandbox-operator
@@ -14,6 +31,10 @@ apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
   name: sandbox-operator-validating-webhook
+{{- if .Values.certManager.enabled }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Values.namespace }}/sandbox-operator-serving-cert
+{{- end }}
 webhooks:
   - name: vsandboxtemplate.sandbox.kce.ksyun.com
     admissionReviewVersions: ["v1"]
@@ -22,9 +43,11 @@ webhooks:
     matchPolicy: Equivalent
     timeoutSeconds: 10
     clientConfig:
-      caBundle: ""
+{{- if not .Values.certManager.enabled }}
+      caBundle: {{ $caBundle | quote }}
+{{- end }}
       service:
-        namespace: sandbox-operator-system
+        namespace: {{ .Values.namespace }}
         name: sandbox-operator-webhook
         path: /validate-sandbox-kce-ksyun-com-v1alpha1-sandboxtemplate
     rules:
@@ -39,9 +62,11 @@ webhooks:
     matchPolicy: Equivalent
     timeoutSeconds: 10
     clientConfig:
-      caBundle: ""
+{{- if not .Values.certManager.enabled }}
+      caBundle: {{ $caBundle | quote }}
+{{- end }}
       service:
-        namespace: sandbox-operator-system
+        namespace: {{ .Values.namespace }}
         name: sandbox-operator-webhook
         path: /validate-sandbox-kce-ksyun-com-v1alpha1-sandbox
     rules:
@@ -56,9 +81,11 @@ webhooks:
     matchPolicy: Equivalent
     timeoutSeconds: 10
     clientConfig:
-      caBundle: ""
+{{- if not .Values.certManager.enabled }}
+      caBundle: {{ $caBundle | quote }}
+{{- end }}
       service:
-        namespace: sandbox-operator-system
+        namespace: {{ .Values.namespace }}
         name: sandbox-operator-webhook
         path: /validate-sandbox-kce-ksyun-com-v1alpha1-sandboxclaim
     rules:

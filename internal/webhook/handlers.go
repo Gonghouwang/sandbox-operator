@@ -132,21 +132,7 @@ func (h *Handler) handleTemplate(ctx context.Context, req admission.Request) adm
 		}
 		return admission.Allowed("template updated in openapi")
 	case admissionv1.Delete:
-		var old sandboxv1.SandboxTemplate
-		if err := h.decodeOld(req, &old); err != nil {
-			return admission.Errored(http.StatusBadRequest, err)
-		}
-		if old.Spec.DeletionPolicy == sandboxv1.DeletionPolicyRetain || old.Status.TemplateID == "" {
-			return admission.Allowed("template retained")
-		}
-		cred, err := h.Credentials.GetOpenAPI(ctx, old.Namespace, old.Spec.OpenAPICredentialRef)
-		if err != nil {
-			return admission.Denied(err.Error())
-		}
-		if err := h.OpenAPI.DeleteTemplate(ctx, mapper.OpenAPICredential(cred), old.Status.TemplateID); err != nil {
-			return admission.Denied(err.Error())
-		}
-		return admission.Allowed("template deleted in openapi")
+		return admission.Allowed("template deletion handled by finalizer")
 	default:
 		return admission.Allowed("operation ignored")
 	}
@@ -184,6 +170,7 @@ func (h *Handler) handleSandbox(ctx context.Context, req admission.Request) admi
 				TemplateID: started.TemplateID,
 				SandboxID:  started.SandboxID,
 				Endpoint:   started.Endpoint,
+				Token:      started.Token,
 			})
 		}
 		return admission.Allowed("sandbox started in openapi")
@@ -199,35 +186,9 @@ func (h *Handler) handleSandbox(ctx context.Context, req admission.Request) admi
 		if err := h.validateSandboxName(ctx, &obj, old.Name); err != nil {
 			return admission.Denied(err.Error())
 		}
-		if obj.Status.SandboxID == "" {
-			return admission.Allowed("sandbox id not bound yet")
-		}
-		if old.Spec.TimeoutSeconds != obj.Spec.TimeoutSeconds {
-			cred, err := h.Credentials.GetOpenAPI(ctx, obj.Namespace, obj.Spec.OpenAPICredentialRef)
-			if err != nil {
-				return admission.Denied(err.Error())
-			}
-			if err := h.OpenAPI.UpdateSandbox(ctx, mapper.OpenAPICredential(cred), openapi.UpdateSandboxRequest{SandboxID: obj.Status.SandboxID, Timeout: obj.Spec.TimeoutSeconds}); err != nil {
-				return admission.Denied(err.Error())
-			}
-		}
-		return admission.Allowed("sandbox updated")
+		return admission.Allowed("sandbox update accepted; OpenAPI has no sandbox update action")
 	case admissionv1.Delete:
-		var old sandboxv1.Sandbox
-		if err := h.decodeOld(req, &old); err != nil {
-			return admission.Errored(http.StatusBadRequest, err)
-		}
-		if old.Spec.DeletionPolicy == sandboxv1.DeletionPolicyRetain || old.Status.SandboxID == "" {
-			return admission.Allowed("sandbox retained")
-		}
-		cred, err := h.Credentials.GetOpenAPI(ctx, old.Namespace, old.Spec.OpenAPICredentialRef)
-		if err != nil {
-			return admission.Denied(err.Error())
-		}
-		if err := h.OpenAPI.DeleteSandbox(ctx, mapper.OpenAPICredential(cred), []string{old.Status.SandboxID}); err != nil {
-			return admission.Denied(err.Error())
-		}
-		return admission.Allowed("sandbox deleted in openapi")
+		return admission.Allowed("sandbox deletion handled by finalizer")
 	default:
 		return admission.Allowed("operation ignored")
 	}

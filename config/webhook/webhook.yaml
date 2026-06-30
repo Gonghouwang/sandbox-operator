@@ -22,11 +22,11 @@ webhooks:
     matchPolicy: Equivalent
     timeoutSeconds: 10
     clientConfig:
+      caBundle: ""
       service:
         namespace: sandbox-operator-system
         name: sandbox-operator-webhook
         path: /validate-sandbox-kce-ksyun-com-v1alpha1-sandboxtemplate
-      caBundle: Cg==
     rules:
       - apiGroups: ["sandbox.kce.ksyun.com"]
         apiVersions: ["v1alpha1"]
@@ -39,11 +39,11 @@ webhooks:
     matchPolicy: Equivalent
     timeoutSeconds: 10
     clientConfig:
+      caBundle: ""
       service:
         namespace: sandbox-operator-system
         name: sandbox-operator-webhook
         path: /validate-sandbox-kce-ksyun-com-v1alpha1-sandbox
-      caBundle: Cg==
     rules:
       - apiGroups: ["sandbox.kce.ksyun.com"]
         apiVersions: ["v1alpha1"]
@@ -56,11 +56,11 @@ webhooks:
     matchPolicy: Equivalent
     timeoutSeconds: 10
     clientConfig:
+      caBundle: ""
       service:
         namespace: sandbox-operator-system
         name: sandbox-operator-webhook
         path: /validate-sandbox-kce-ksyun-com-v1alpha1-sandboxclaim
-      caBundle: Cg==
     rules:
       - apiGroups: ["sandbox.kce.ksyun.com"]
         apiVersions: ["v1alpha1"]

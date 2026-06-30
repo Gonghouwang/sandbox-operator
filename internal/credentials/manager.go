@@ -40,15 +40,19 @@ type RuntimeCredential struct {
 }
 
 type Manager struct {
-	client client.Client
+	client                   client.Client
+	defaultOpenAPISecretName string
 }
 
-func NewManager(c client.Client) *Manager {
-	return &Manager{client: c}
+func NewManager(c client.Client, defaultOpenAPISecretName string) *Manager {
+	if defaultOpenAPISecretName == "" {
+		defaultOpenAPISecretName = DefaultOpenAPISecretName
+	}
+	return &Manager{client: c, defaultOpenAPISecretName: defaultOpenAPISecretName}
 }
 
 func (m *Manager) GetOpenAPI(ctx context.Context, namespace string, ref *sandboxv1.OpenAPICredentialReference) (*OpenAPICredential, error) {
-	name := DefaultOpenAPISecretName
+	name := m.defaultOpenAPISecretName
 	if ref != nil && ref.Name != "" {
 		name = ref.Name
 	}

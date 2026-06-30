@@ -1,0 +1,39 @@
+namespace: sandbox-operator-system
+
+image:
+  repository: sandbox-operator
+  tag: latest
+  pullPolicy: IfNotPresent
+
+imagePullSecrets:
+  - name: ksyunregistrykey
+
+config:
+  openapiBaseURL: http://aicp.cn-beijing-6.inner.api.ksyun.com
+  openapiAuthMode: kop-sigv4
+  openapiService: aicp
+  openapiVersion: "2026-04-01"
+  defaultOpenAPICredentialSecret: sandbox-openapi-credentials
+  pollInterval: 30s
+  pollPageSize: "200"
+  maxConcurrentNamespaces: "5"
+  metricsBindAddress: :8080
+  healthProbeBindAddress: :8081
+  leaderElect: "true"
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+certManager:
+  enabled: false
+
+webhook:
+  tlsSecretName: sandbox-operator-webhook-server-cert
+  selfSigned:
+    enabled: true
+  caBundle: ""

@@ -24,6 +24,7 @@ const (
 	DataSandboxID  = "sandboxID"
 	DataSandboxIDs = "sandboxIDs"
 	DataEndpoint   = "endpoint"
+	DataToken      = "token"
 )
 
 type Record struct {
@@ -36,6 +37,7 @@ type Record struct {
 	SandboxID  string
 	SandboxIDs []string
 	Endpoint   string
+	Token      string
 }
 
 type Recorder struct {
@@ -59,6 +61,7 @@ func (r *Recorder) Upsert(ctx context.Context, rec Record) error {
 		DataTemplateID: rec.TemplateID,
 		DataSandboxID:  rec.SandboxID,
 		DataEndpoint:   rec.Endpoint,
+		DataToken:      rec.Token,
 	}
 	if rec.SandboxIDs != nil {
 		b, err := json.Marshal(rec.SandboxIDs)
@@ -108,6 +111,7 @@ func (r *Recorder) Get(ctx context.Context, namespace, kind, name string) (*Reco
 		TemplateID: cm.Data[DataTemplateID],
 		SandboxID:  cm.Data[DataSandboxID],
 		Endpoint:   cm.Data[DataEndpoint],
+		Token:      cm.Data[DataToken],
 	}
 	if raw := cm.Data[DataSandboxIDs]; raw != "" {
 		_ = json.Unmarshal([]byte(raw), &rec.SandboxIDs)

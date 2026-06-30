@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: sandbox-operator
-  namespace: sandbox-operator-system
+  namespace: {{ .Values.namespace }}
 spec:
   replicas: 1
   selector:
@@ -14,11 +14,14 @@ spec:
         app.kubernetes.io/name: sandbox-operator
     spec:
       serviceAccountName: sandbox-operator
+      {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
-        - name: ksyunregistrykey
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: manager
-          image: sandbox-operator:latest
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           envFrom:
             - configMapRef:
                 name: sandbox-operator-config
@@ -51,13 +54,8 @@ spec:
               mountPath: /tmp/k8s-webhook-server/serving-certs
               readOnly: true
           resources:
-            requests:
-              cpu: 200m
-              memory: 256Mi
-            limits:
-              cpu: "1"
-              memory: 1Gi
+{{ toYaml .Values.resources | indent 12 }}
       volumes:
         - name: webhook-cert
           secret:
-            secretName: sandbox-operator-webhook-server-cert
+            secretName: {{ .Values.webhook.tlsSecretName }}

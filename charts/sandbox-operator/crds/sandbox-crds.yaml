@@ -1,0 +1,149 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: sandboxtemplates.sandbox.kce.ksyun.com
+spec:
+  group: sandbox.kce.ksyun.com
+  scope: Namespaced
+  names:
+    kind: SandboxTemplate
+    plural: sandboxtemplates
+    singular: sandboxtemplate
+    shortNames: ["stpl"]
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: TemplateID
+          type: string
+          jsonPath: .status.templateID
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Updated
+          type: date
+          jsonPath: .status.externalUpdatedAt
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: sandboxes.sandbox.kce.ksyun.com
+spec:
+  group: sandbox.kce.ksyun.com
+  scope: Namespaced
+  names:
+    kind: Sandbox
+    plural: sandboxes
+    singular: sandbox
+    shortNames: ["sbx"]
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: SandboxName
+          type: string
+          jsonPath: .spec.name
+        - name: SandboxID
+          type: string
+          jsonPath: .status.sandboxID
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Timeout
+          type: integer
+          jsonPath: .spec.timeoutSeconds
+        - name: Updated
+          type: date
+          jsonPath: .status.externalUpdatedAt
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: ["templateRef"]
+              properties:
+                name:
+                  type: string
+                templateRef:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+                timeoutSeconds:
+                  type: integer
+                  minimum: 60
+                  maximum: 86400
+              x-kubernetes-preserve-unknown-fields: true
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: sandboxclaims.sandbox.kce.ksyun.com
+spec:
+  group: sandbox.kce.ksyun.com
+  scope: Namespaced
+  names:
+    kind: SandboxClaim
+    plural: sandboxclaims
+    singular: sandboxclaim
+    shortNames: ["sbxc"]
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Desired
+          type: integer
+          jsonPath: .status.desired
+        - name: Ready
+          type: integer
+          jsonPath: .status.ready
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: ["templateRef"]
+              properties:
+                replicas:
+                  type: integer
+                  minimum: 1
+                templateRef:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+              x-kubernetes-preserve-unknown-fields: true
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true

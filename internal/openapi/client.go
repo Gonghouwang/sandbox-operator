@@ -7,13 +7,37 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"sort"
 	"strings"
 	"time"
 )
+
+type APIError struct {
+	Action     string
+	StatusCode int
+	RequestID  string
+	Message    string
+}
+
+func (e *APIError) Error() string {
+	if e.Message != "" {
+		return fmt.Sprintf("openapi %s failed: http %d requestId=%s: %s", e.Action, e.StatusCode, e.RequestID, e.Message)
+	}
+	return fmt.Sprintf("openapi %s failed: http %d requestId=%s", e.Action, e.StatusCode, e.RequestID)
+}
+
+func IsNotFound(err error) bool {
+	var apiErr *APIError
+	if errors.As(err, &apiErr) {
+		return apiErr.StatusCode == http.StatusNotFound
+	}
+	return false
+}
 
 type Interface interface {
 	CreateTemplate(ctx context.Context, cred Credential, req CreateTemplateRequest) (*CreateTemplateResponse, error)
@@ -23,11 +47,9 @@ type Interface interface {
 	ListTemplates(ctx context.Context, cred Credential, req ListTemplatesRequest) (*TemplateList, error)
 
 	StartSandbox(ctx context.Context, cred Credential, req StartSandboxRequest) (*StartSandboxResponse, error)
-	UpdateSandbox(ctx context.Context, cred Credential, req UpdateSandboxRequest) error
 	DeleteSandbox(ctx context.Context, cred Credential, instanceIDs []string) error
 	GetSandbox(ctx context.Context, cred Credential, instanceID string) (*Sandbox, error)
 	ListSandboxes(ctx context.Context, cred Credential, req ListSandboxesRequest) (*SandboxList, error)
-	GetSandboxToken(ctx context.Context, cred Credential, instanceID string) (*SandboxToken, error)
 }
 
 type Client struct {
@@ -98,15 +120,24 @@ func (c *Client) action(ctx context.Context, cred Credential, action string, pay
 	}
 	defer resp.Body.Close()
 
-	var envelope baseResponse
-	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
 		return err
 	}
+	var envelope baseResponse
+	if len(responseBody) > 0 {
+		_ = json.Unmarshal(responseBody, &envelope)
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("openapi %s failed: http %d requestId=%s", action, resp.StatusCode, envelope.RequestID)
+		return &APIError{Action: action, StatusCode: resp.StatusCode, RequestID: envelope.RequestID, Message: responseErrorMessage(envelope, responseBody)}
 	}
 	if out == nil {
 		return nil
+	}
+	if len(responseBody) > 0 {
+		if err := json.Unmarshal(responseBody, &envelope); err != nil {
+			return err
+		}
 	}
 	data := envelope.Data
 	if len(data) == 0 {
@@ -119,6 +150,19 @@ func (c *Client) action(ctx context.Context, cred Credential, action string, pay
 		return fmt.Errorf("decode openapi %s response: %w", action, err)
 	}
 	return nil
+}
+
+func responseErrorMessage(envelope baseResponse, raw []byte) string {
+	if envelope.Error != nil {
+		data, err := json.Marshal(envelope.Error)
+		if err == nil {
+			return string(data)
+		}
+	}
+	if len(raw) > 0 {
+		return string(raw)
+	}
+	return ""
 }
 
 func requestID() string {
@@ -263,10 +307,6 @@ func (c *Client) StartSandbox(ctx context.Context, cred Credential, req StartSan
 	return &out, c.action(ctx, cred, "StartSandboxInstance", req, &out)
 }
 
-func (c *Client) UpdateSandbox(ctx context.Context, cred Credential, req UpdateSandboxRequest) error {
-	return c.action(ctx, cred, "UpdateSandboxInstance", req, nil)
-}
-
 func (c *Client) DeleteSandbox(ctx context.Context, cred Credential, instanceIDs []string) error {
 	return c.action(ctx, cred, "DeleteSandboxInstance", map[string][]string{"InstanceIds": instanceIDs}, nil)
 }
@@ -279,9 +319,4 @@ func (c *Client) GetSandbox(ctx context.Context, cred Credential, instanceID str
 func (c *Client) ListSandboxes(ctx context.Context, cred Credential, req ListSandboxesRequest) (*SandboxList, error) {
 	var out SandboxList
 	return &out, c.action(ctx, cred, "GetSandboxInstanceList", req, &out)
-}
-
-func (c *Client) GetSandboxToken(ctx context.Context, cred Credential, instanceID string) (*SandboxToken, error) {
-	var out SandboxToken
-	return &out, c.action(ctx, cred, "GetSandboxInstanceToken", map[string]string{"InstanceId": instanceID}, &out)
 }
