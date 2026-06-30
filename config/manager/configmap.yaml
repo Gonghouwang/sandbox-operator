@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sandbox-operator-config
+  namespace: sandbox-operator-system
+data:
+  OPENAPI_BASE_URL: "http://aicp.cn-beijing-6.inner.api.ksyun.com"
+  OPENAPI_AUTH_MODE: "kop-sigv4"
+  OPENAPI_SERVICE: "aicp"
+  OPENAPI_VERSION: "2026-04-01"
+  POLL_INTERVAL: "30s"
+  METRICS_BIND_ADDRESS: ":8080"
+  HEALTH_PROBE_BIND_ADDRESS: ":8081"
+  LEADER_ELECT: "true"

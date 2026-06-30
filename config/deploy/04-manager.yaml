@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sandbox-operator
+  namespace: sandbox-operator-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sandbox-operator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sandbox-operator
+    spec:
+      serviceAccountName: sandbox-operator
+      containers:
+        - name: manager
+          image: sandbox-operator:latest
+          envFrom:
+            - configMapRef:
+                name: sandbox-operator-config
+          args:
+            - --leader-elect=$(LEADER_ELECT)
+            - --openapi-base-url=$(OPENAPI_BASE_URL)
+            - --openapi-auth-mode=$(OPENAPI_AUTH_MODE)
+            - --openapi-service=$(OPENAPI_SERVICE)
+            - --openapi-version=$(OPENAPI_VERSION)
+            - --poll-interval=$(POLL_INTERVAL)
+            - --metrics-bind-address=$(METRICS_BIND_ADDRESS)
+            - --health-probe-bind-address=$(HEALTH_PROBE_BIND_ADDRESS)
+          ports:
+            - containerPort: 9443
+              name: webhook
+            - containerPort: 8080
+              name: metrics
+            - containerPort: 8081
+              name: probes

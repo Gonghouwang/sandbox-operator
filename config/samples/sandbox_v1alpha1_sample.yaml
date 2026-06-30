@@ -1,0 +1,58 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sandbox-openapi-credentials
+  namespace: sandbox-demo
+  labels:
+    sandbox.ksyun.com/credential-type: openapi
+type: Opaque
+stringData:
+  accessKeyId: "AKxxxxxxxx"
+  secretAccessKey: "SKxxxxxxxx"
+  accountId: "2000123456"
+  region: "cn-beijing-6"
+---
+apiVersion: sandbox.kce.ksyun.com/v1alpha1
+kind: SandboxTemplate
+metadata:
+  name: custom-app
+  namespace: sandbox-demo
+spec:
+  description: "custom app runtime"
+  category: Private
+  type: Custom
+  image:
+    source: Public
+    imageUrl: "hub.kce.ksyun.com/sandbox/aio"
+    imageTag: "v20260608"
+  command: "python /home/user/app.py"
+  ports: [8080]
+  resources:
+    cpu: 2
+    memoryGB: 4
+  instanceQuota: 10
+  deletionPolicy: Delete
+---
+apiVersion: sandbox.kce.ksyun.com/v1alpha1
+kind: Sandbox
+metadata:
+  name: demo-sandbox
+  namespace: sandbox-demo
+spec:
+  name: demo-sandbox
+  templateRef:
+    name: custom-app
+  timeoutSeconds: 1800
+  deletionPolicy: Delete
+---
+apiVersion: sandbox.kce.ksyun.com/v1alpha1
+kind: SandboxClaim
+metadata:
+  name: demo-claim
+  namespace: sandbox-demo
+spec:
+  replicas: 2
+  templateRef:
+    name: custom-app
+  timeoutSeconds: 1800
+  deletionPolicy: Delete

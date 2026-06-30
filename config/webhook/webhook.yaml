@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sandbox-operator-webhook
+  namespace: sandbox-operator-system
+spec:
+  selector:
+    app.kubernetes.io/name: sandbox-operator
+  ports:
+    - port: 443
+      targetPort: webhook
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: sandbox-operator-validating-webhook
+webhooks:
+  - name: vsandboxtemplate.sandbox.kce.ksyun.com
+    admissionReviewVersions: ["v1"]
+    sideEffects: NoneOnDryRun
+    failurePolicy: Fail
+    matchPolicy: Equivalent
+    timeoutSeconds: 10
+    clientConfig:
+      service:
+        namespace: sandbox-operator-system
+        name: sandbox-operator-webhook
+        path: /validate-sandbox-kce-ksyun-com-v1alpha1-sandboxtemplate
+      caBundle: Cg==
+    rules:
+      - apiGroups: ["sandbox.kce.ksyun.com"]
+        apiVersions: ["v1alpha1"]
+        operations: ["CREATE", "UPDATE", "DELETE"]
+        resources: ["sandboxtemplates"]
+  - name: vsandbox.sandbox.kce.ksyun.com
+    admissionReviewVersions: ["v1"]
+    sideEffects: NoneOnDryRun
+    failurePolicy: Fail
+    matchPolicy: Equivalent
+    timeoutSeconds: 10
+    clientConfig:
+      service:
+        namespace: sandbox-operator-system
+        name: sandbox-operator-webhook
+        path: /validate-sandbox-kce-ksyun-com-v1alpha1-sandbox
+      caBundle: Cg==
+    rules:
+      - apiGroups: ["sandbox.kce.ksyun.com"]
+        apiVersions: ["v1alpha1"]
+        operations: ["CREATE", "UPDATE", "DELETE"]
+        resources: ["sandboxes"]
+  - name: vsandboxclaim.sandbox.kce.ksyun.com
+    admissionReviewVersions: ["v1"]
+    sideEffects: NoneOnDryRun
+    failurePolicy: Fail
+    matchPolicy: Equivalent
+    timeoutSeconds: 10
+    clientConfig:
+      service:
+        namespace: sandbox-operator-system
+        name: sandbox-operator-webhook
+        path: /validate-sandbox-kce-ksyun-com-v1alpha1-sandboxclaim
+      caBundle: Cg==
+    rules:
+      - apiGroups: ["sandbox.kce.ksyun.com"]
+        apiVersions: ["v1alpha1"]
+        operations: ["CREATE", "UPDATE", "DELETE"]
+        resources: ["sandboxclaims"]
