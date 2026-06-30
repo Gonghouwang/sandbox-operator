@@ -315,6 +315,9 @@ func (p *Poller) pageSize() int {
 	if p.PageSize <= 0 {
 		return 100
 	}
+	if p.PageSize > 100 {
+		return 100
+	}
 	return p.PageSize
 }
 

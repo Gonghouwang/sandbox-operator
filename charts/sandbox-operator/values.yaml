@@ -1,4 +1,5 @@
 namespace: sandbox-operator-system
+createNamespace: false
 
 image:
   repository: sandbox-operator
@@ -15,7 +16,7 @@ config:
   openapiVersion: "2026-04-01"
   defaultOpenAPICredentialSecret: sandbox-openapi-credentials
   pollInterval: 30s
-  pollPageSize: "200"
+  pollPageSize: "100"
   maxConcurrentNamespaces: "5"
   metricsBindAddress: :8080
   healthProbeBindAddress: :8081

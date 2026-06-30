@@ -48,6 +48,11 @@ helm install sandbox-operator charts/sandbox-operator \
   --set image.tag=latest
 ```
 
+The chart does not render a `Namespace` object by default. Use Helm
+`--create-namespace`, or create the namespace before installing. If your Helm
+platform does not support `--create-namespace`, set `createNamespace=true` only
+for a namespace that does not already exist.
+
 The Helm chart defaults to an in-chart self-signed webhook certificate. To use
 cert-manager instead, install cert-manager in the cluster and set:
 
