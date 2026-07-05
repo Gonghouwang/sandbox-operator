@@ -1014,13 +1014,13 @@ func displayAccess(value string) string {
 func templateType(value string) string {
 	switch strings.ToLower(value) {
 	case "custom":
-		return "custom"
+		return "Custom"
 	case "browser":
-		return "browser"
+		return "Browser"
 	case "code", "codeinterpreter":
-		return "code"
+		return "CodeInterpreter"
 	case "aio", "all-in-one", "allinone":
-		return "AIO"
+		return "All-in-one"
 	default:
 		return value
 	}
@@ -1031,13 +1031,13 @@ func displayTemplateType(value string) string {
 	case "aio", "all-in-one", "allinone":
 		return "AIO"
 	case "browser":
-		return "BROWSER"
+		return "Browser"
 	case "code", "codeinterpreter":
-		return "CODE"
+		return "Code"
 	case "custom":
-		return "CUSTOM"
+		return "Custom"
 	default:
-		return strings.ToUpper(value)
+		return value
 	}
 }
 

@@ -12,14 +12,20 @@ import (
 
 func TestTemplateTypeMapping(t *testing.T) {
 	cases := map[string]string{
-		"AIO":             "AIO",
-		"aio":             "AIO",
-		"BROWSER":         "browser",
-		"browser":         "browser",
-		"CODE":            "code",
-		"CodeInterpreter": "code",
-		"CUSTOM":          "custom",
-		"custom":          "custom",
+		"AIO":             "All-in-one",
+		"aio":             "All-in-one",
+		"All-in-one":      "All-in-one",
+		"allinone":        "All-in-one",
+		"BROWSER":         "Browser",
+		"browser":         "Browser",
+		"Browser":         "Browser",
+		"CODE":            "CodeInterpreter",
+		"code":            "CodeInterpreter",
+		"Code":            "CodeInterpreter",
+		"CodeInterpreter": "CodeInterpreter",
+		"CUSTOM":          "Custom",
+		"custom":          "Custom",
+		"Custom":          "Custom",
 	}
 	for in, want := range cases {
 		if got := templateType(in); got != want {
@@ -30,12 +36,12 @@ func TestTemplateTypeMapping(t *testing.T) {
 	displayCases := map[string]string{
 		"All-in-one":      "AIO",
 		"AIO":             "AIO",
-		"browser":         "BROWSER",
-		"Browser":         "BROWSER",
-		"code":            "CODE",
-		"CodeInterpreter": "CODE",
-		"custom":          "CUSTOM",
-		"Custom":          "CUSTOM",
+		"browser":         "Browser",
+		"Browser":         "Browser",
+		"code":            "Code",
+		"CodeInterpreter": "Code",
+		"custom":          "Custom",
+		"Custom":          "Custom",
 	}
 	for in, want := range displayCases {
 		if got := displayTemplateType(in); got != want {
@@ -44,11 +50,11 @@ func TestTemplateTypeMapping(t *testing.T) {
 	}
 }
 
-func TestApplyTemplateSpecDisplaysUppercaseType(t *testing.T) {
+func TestApplyTemplateSpecDisplaysCanonicalCRType(t *testing.T) {
 	var obj sandboxv1.SandboxTemplate
 	ApplyTemplateSpecFromOpenAPI(&obj, openapi.Template{TemplateType: "browser", TemplateCategory: "Private"})
-	if obj.Spec.Type != "BROWSER" {
-		t.Fatalf("synced template type = %q, want BROWSER", obj.Spec.Type)
+	if obj.Spec.Type != "Browser" {
+		t.Fatalf("synced template type = %q, want Browser", obj.Spec.Type)
 	}
 }
 

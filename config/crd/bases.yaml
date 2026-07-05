@@ -54,7 +54,7 @@ spec:
                   type: string
                 type:
                   type: string
-                  enum: ["Custom", "CodeInterpreter", "Browser", "AllInOne", "custom", "code", "browser", "AIO", "CUSTOM", "CODE", "BROWSER"]
+                  enum: ["Custom", "Browser", "Code", "AIO", "custom", "browser", "code", "aio", "CUSTOM", "BROWSER", "CODE", "CodeInterpreter", "All-in-one", "AllInOne", "allinone"]
                 access:
                   type: string
                   enum: ["Private", "Public", "private", "public"]
