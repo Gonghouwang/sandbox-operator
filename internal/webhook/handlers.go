@@ -562,6 +562,9 @@ func (h *Handler) resolveTemplateID(ctx context.Context, obj *sandboxv1.Sandbox)
 }
 
 func (h *Handler) resolveClaimTemplateID(ctx context.Context, obj *sandboxv1.SandboxClaim) (string, error) {
+	if obj.Spec.TemplateRef.ID != "" && obj.Spec.TemplateRef.Name != "" {
+		return "", fmt.Errorf("spec.templateRef.id and spec.templateRef.name are mutually exclusive")
+	}
 	if obj.Spec.TemplateRef.ID != "" {
 		return obj.Spec.TemplateRef.ID, nil
 	}

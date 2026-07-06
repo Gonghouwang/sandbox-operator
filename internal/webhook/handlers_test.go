@@ -67,6 +67,15 @@ func TestValidateSandboxTemplateSource(t *testing.T) {
 		t.Fatalf("templateRef should be accepted: %v", err)
 	}
 
+	obj.Spec.TemplateRef = sandboxv1.TemplateReference{ID: "tpl-1", Name: "template-a"}
+	if err := h.validateSandboxTemplateSource(obj); err != nil {
+		t.Fatalf("templateRef source should be accepted before id/name resolution: %v", err)
+	}
+	if _, err := h.resolveTemplateID(nil, obj); err == nil {
+		t.Fatalf("templateRef id and name together should be rejected during resolution")
+	}
+
+	obj.Spec.TemplateRef = sandboxv1.TemplateReference{ID: "tpl-1"}
 	obj.Spec.Template = &sandboxv1.SandboxInlineTemplate{Type: "Custom", Access: "Private"}
 	if err := h.validateSandboxTemplateSource(obj); err == nil {
 		t.Fatalf("templateRef and inline template together should be rejected")
