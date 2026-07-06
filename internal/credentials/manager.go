@@ -25,7 +25,6 @@ const (
 
 	KeyRuntimeAccessKey       = "accessKey"
 	KeyRuntimeSecretAccessKey = "secretAccessKey"
-	KeyRuntimeToken           = "token"
 )
 
 type OpenAPICredential struct {
@@ -39,7 +38,6 @@ type OpenAPICredential struct {
 type RuntimeCredential struct {
 	AccessKey       string
 	SecretAccessKey string
-	Token           string
 	SecretName      string
 }
 
@@ -116,7 +114,6 @@ func (m *Manager) GetRuntime(ctx context.Context, namespace string, ref *sandbox
 	return &RuntimeCredential{
 		AccessKey:       string(secret.Data[KeyRuntimeAccessKey]),
 		SecretAccessKey: string(secret.Data[KeyRuntimeSecretAccessKey]),
-		Token:           string(secret.Data[KeyRuntimeToken]),
 		SecretName:      ref.Name,
 	}, nil
 }

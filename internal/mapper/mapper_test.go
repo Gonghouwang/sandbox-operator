@@ -73,9 +73,7 @@ func TestTemplateUpdateRequestFromDiffOnlySendsChangedTopLevelFields(t *testing.
 
 	changedMount := templateWithKS3("old description", "/mnt/new")
 	req = TemplateUpdateRequestFromDiff(changedMount, old, RuntimeCredentials{
-		KS3ByName: map[string]*credentials.RuntimeCredential{
-			"ks3-credential": {AccessKey: "ak", SecretAccessKey: "sk"},
-		},
+		Storage: &credentials.RuntimeCredential{AccessKey: "ak", SecretAccessKey: "sk"},
 	})
 	if req.KS3MountConfig == nil || !req.KS3MountConfig.EnableKS3 {
 		t.Fatalf("changed mount config should be included: %#v", req)
@@ -85,7 +83,7 @@ func TestTemplateUpdateRequestFromDiffOnlySendsChangedTopLevelFields(t *testing.
 	}
 
 	deletedMount := templateWithKS3("old description", "/mnt/old")
-	deletedMount.Spec.Template.Spec.Volumes = nil
+	deletedMount.Spec.Template.Spec.Ks3MountConfig = nil
 	req = TemplateUpdateRequestFromDiff(deletedMount, old, RuntimeCredentials{})
 	if req.KS3MountConfig == nil || req.KS3MountConfig.EnableKS3 {
 		t.Fatalf("deleted KS3 mount must send Ks3Enable=false: %#v", req.KS3MountConfig)
@@ -233,14 +231,11 @@ func TestApplySandboxStatusIncludesRuntimeDetails(t *testing.T) {
 	if len(obj.Status.Env) != 1 || obj.Status.Env[0].Key != "APP_ENV" || obj.Status.Env[0].Value != "prod" {
 		t.Fatalf("sandbox env was not synced to status: %#v", obj.Status.Env)
 	}
-	if len(obj.Status.Volumes) != 2 {
-		t.Fatalf("sandbox volumes were not synced to status: %#v", obj.Status.Volumes)
+	if obj.Status.Ks3MountConfig == nil || len(obj.Status.Ks3MountConfig.MountPoints) != 1 || obj.Status.Ks3MountConfig.MountPoints[0].BucketName != "bucket-a" {
+		t.Fatalf("sandbox KS3 mount config mismatch: %#v", obj.Status.Ks3MountConfig)
 	}
-	if obj.Status.Volumes[0].KS3 == nil || obj.Status.Volumes[0].KS3.Bucket != "bucket-a" {
-		t.Fatalf("sandbox KS3 volume mismatch: %#v", obj.Status.Volumes[0])
-	}
-	if obj.Status.Volumes[1].KPFS == nil || obj.Status.Volumes[1].KPFS.FileSystem != "fs-a" {
-		t.Fatalf("sandbox KPFS volume mismatch: %#v", obj.Status.Volumes[1])
+	if obj.Status.KpfsMountConfig == nil || len(obj.Status.KpfsMountConfig.MountPoints) != 1 || obj.Status.KpfsMountConfig.MountPoints[0].FileSystemName != "fs-a" {
+		t.Fatalf("sandbox KPFS mount config mismatch: %#v", obj.Status.KpfsMountConfig)
 	}
 }
 
@@ -279,18 +274,17 @@ func templateWithKS3(description, mountPath string) *sandboxv1.SandboxTemplate {
 			Type:        "CUSTOM",
 			Template: &sandboxv1.RuntimeTemplate{Spec: sandboxv1.RuntimeTemplateSpec{
 				Resources: &sandboxv1.RuntimeResourceSpec{CPU: "2", Memory: memory},
-				Volumes: []sandboxv1.TemplateVolume{{
-					Name:      "ks3-data",
-					Type:      "KS3",
-					MountPath: mountPath,
-					KS3: &sandboxv1.KS3VolumeSource{
-						Bucket: "bucket-a",
-						Path:   "/datasets",
-						CredentialRef: &sandboxv1.LocalObjectReference{
-							Name: "ks3-credential",
-						},
-					},
-				}},
+				StorageCredentialRef: &sandboxv1.LocalObjectReference{
+					Name: "ks3-credential",
+				},
+				Ks3MountConfig: &sandboxv1.MountConfig{
+					Enabled: true,
+					MountPoints: []sandboxv1.MountPoint{{
+						BucketName:     "bucket-a",
+						RemotePath:     "/datasets",
+						LocalMountPath: mountPath,
+					}},
+				},
 			}},
 		},
 	}

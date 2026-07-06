@@ -31,7 +31,7 @@ spec:
           jsonPath: .status.phase
         - name: Target
           type: integer
-          jsonPath: .spec.template.spec.pool.targetSize
+          jsonPath: .status.preheat.number
         - name: Preheated
           type: integer
           jsonPath: .status.preheat.preheatedInstanceNumber
@@ -114,44 +114,47 @@ spec:
                                 type: string
                               value:
                                 type: string
-                        volumes:
-                          type: array
-                          items:
-                            type: object
-                            properties:
-                              name:
-                                type: string
-                              type:
-                                type: string
-                                enum: ["KS3", "KPFS", "ks3", "kpfs"]
-                              mountPath:
-                                type: string
-                              readOnly:
-                                type: boolean
-                              ks3:
+                        storageCredentialRef:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                        ks3MountConfig:
+                          type: object
+                          properties:
+                            enabled:
+                              type: boolean
+                            mountPoints:
+                              type: array
+                              items:
                                 type: object
                                 properties:
-                                  bucket:
+                                  bucketName:
                                     type: string
-                                  path:
+                                  remotePath:
                                     type: string
-                                  credentialRef:
-                                    type: object
-                                    properties:
-                                      name:
-                                        type: string
-                              kpfs:
+                                  localMountPath:
+                                    type: string
+                                  readOnly:
+                                    type: boolean
+                        kpfsMountConfig:
+                          type: object
+                          properties:
+                            enabled:
+                              type: boolean
+                            mountPoints:
+                              type: array
+                              items:
                                 type: object
                                 properties:
-                                  fileSystem:
+                                  fileSystemName:
                                     type: string
-                                  path:
+                                  remotePath:
                                     type: string
-                                  credentialRef:
-                                    type: object
-                                    properties:
-                                      name:
-                                        type: string
+                                  localMountPath:
+                                    type: string
+                                  readOnly:
+                                    type: boolean
                         networkConfig:
                           type: object
                           properties:

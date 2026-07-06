@@ -390,6 +390,7 @@ func (r *SandboxClaimReconciler) ensureClaimSandboxes(ctx context.Context, claim
 				TemplateRef:          claim.Spec.TemplateRef,
 				TimeoutSeconds:       claim.Spec.TimeoutSeconds,
 				Env:                  append([]sandboxv1.EnvVar(nil), claim.Spec.Env...),
+				StorageCredentialRef: claim.Spec.StorageCredentialRef,
 				Ks3MountConfig:       claim.Spec.Ks3MountConfig,
 				KpfsMountConfig:      claim.Spec.KpfsMountConfig,
 			},

@@ -15,6 +15,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type APIError struct {
@@ -89,6 +91,9 @@ type baseResponse struct {
 }
 
 func (c *Client) action(ctx context.Context, cred Credential, action string, payload any, out any) error {
+	logger := log.FromContext(ctx)
+	reqID := requestID()
+
 	endpoint, err := url.Parse(c.BaseURL)
 	if err != nil {
 		return err
@@ -114,40 +119,75 @@ func (c *Client) action(ctx context.Context, cred Credential, action string, pay
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-KSC-REQUEST-ID", requestID())
+	req.Header.Set("X-KSC-REQUEST-ID", reqID)
 	req.Header.Set("X-KSC-REGION", cred.Region)
 	req.Header.Set("X-KSC-ACCOUNT-ID", cred.AccountID)
 	req.Header.Set("X-KSC-SOURCE", "sandbox-operator")
 	req.Header.Set("x-inner-api-call", "1")
+
+	logger.V(1).Info("openapi request",
+		"action", action,
+		"requestID", reqID,
+		"url", req.URL.String(),
+		"accountID", cred.AccountID,
+		"region", cred.Region,
+	)
+
 	if c.AuthMode == "kop-sigv4" {
 		if err := c.signV4(req, body, cred); err != nil {
+			logger.Error(err, "openapi sign v4 failed", "action", action, "requestID", reqID)
 			return err
 		}
 	}
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
+		logger.Error(err, "openapi request failed", "action", action, "requestID", reqID)
 		return err
 	}
 	defer resp.Body.Close()
 
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
+		logger.Error(err, "openapi read response body failed", "action", action, "requestID", reqID)
 		return err
 	}
 	var envelope baseResponse
 	if len(responseBody) > 0 {
 		_ = json.Unmarshal(responseBody, &envelope)
 	}
+
+	respReqID := responseRequestID(envelope)
+	if respReqID == "" {
+		respReqID = reqID
+	}
+
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		code, message := responseError(envelope, responseBody)
-		return &APIError{Action: action, StatusCode: resp.StatusCode, RequestID: responseRequestID(envelope), Code: code, Message: message}
+		logger.Error(fmt.Errorf("openapi %s failed", action), "openapi error",
+			"action", action,
+			"requestID", respReqID,
+			"statusCode", resp.StatusCode,
+			"code", code,
+			"message", message,
+			"responseBody", string(responseBody),
+		)
+		return &APIError{Action: action, StatusCode: resp.StatusCode, RequestID: respReqID, Code: code, Message: message}
 	}
+
+	logger.V(1).Info("openapi response",
+		"action", action,
+		"requestID", respReqID,
+		"statusCode", resp.StatusCode,
+		"bodySize", len(responseBody),
+	)
+
 	if out == nil {
 		return nil
 	}
 	if len(responseBody) > 0 {
 		if err := json.Unmarshal(responseBody, &envelope); err != nil {
+			logger.Error(err, "openapi decode response envelope failed", "action", action, "requestID", respReqID)
 			return err
 		}
 	}
@@ -159,6 +199,7 @@ func (c *Client) action(ctx context.Context, cred Credential, action string, pay
 		data = responseBody
 	}
 	if err := json.Unmarshal(data, out); err != nil {
+		logger.Error(err, "openapi decode response data failed", "action", action, "requestID", respReqID, "body", string(responseBody))
 		return fmt.Errorf("decode openapi %s response: %w", action, err)
 	}
 	return nil

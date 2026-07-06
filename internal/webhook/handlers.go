@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
-	"strings"
 
 	admissionv1 "k8s.io/api/admission/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -335,17 +334,29 @@ func (h *Handler) mutateClaimCreate(ctx context.Context, req admission.Request) 
 	if err != nil {
 		return admission.Denied(err.Error())
 	}
+	var runtimeCreds mapper.RuntimeCredentials
+	if obj.Spec.StorageCredentialRef != nil && obj.Spec.StorageCredentialRef.Name != "" {
+		runtimeCreds.Storage, err = h.Credentials.GetRuntime(ctx, obj.Namespace, obj.Spec.StorageCredentialRef)
+		if err != nil {
+			return admission.Denied(err.Error())
+		}
+	}
 	sandboxIDs := make([]string, 0, obj.Spec.Replicas)
 	for i := 0; i < obj.Spec.Replicas; i++ {
 		name := fmt.Sprintf("%s-%d", obj.Name, i)
 		if err := h.ensureSandboxNameAvailable(ctx, obj.Namespace, name, ""); err != nil {
 			return admission.Denied(err.Error())
 		}
-		startReq := openapi.StartSandboxRequest{
-			TemplateID: templateID,
-			Timeout:    obj.Spec.TimeoutSeconds,
-			Envs:       mapper.SandboxStartRequest(&sandboxv1.Sandbox{Spec: sandboxv1.SandboxSpec{Env: obj.Spec.Env}}, templateID, mapper.RuntimeCredentials{}).Envs,
-		}
+		startReq := mapper.SandboxStartRequest(&sandboxv1.Sandbox{
+			Spec: sandboxv1.SandboxSpec{
+				TemplateRef:          sandboxv1.TemplateReference{ID: templateID},
+				TimeoutSeconds:       obj.Spec.TimeoutSeconds,
+				Env:                  obj.Spec.Env,
+				Ks3MountConfig:       obj.Spec.Ks3MountConfig,
+				KpfsMountConfig:      obj.Spec.KpfsMountConfig,
+				StorageCredentialRef: obj.Spec.StorageCredentialRef,
+			},
+		}, templateID, runtimeCreds)
 		started, err := h.OpenAPI.StartSandbox(ctx, mapper.OpenAPICredential(cred), startReq)
 		if err != nil {
 			return admission.Denied(err.Error())
@@ -379,28 +390,8 @@ func (h *Handler) templateCredentials(ctx context.Context, obj *sandboxv1.Sandbo
 				return nil, mapper.RuntimeCredentials{}, err
 			}
 		}
-		runtimeCreds.KS3ByName = map[string]*credentials.RuntimeCredential{}
-		runtimeCreds.KPFSByName = map[string]*credentials.RuntimeCredential{}
-		for _, volume := range tpl.Volumes {
-			switch {
-			case volume.KS3 != nil && volume.KS3.CredentialRef != nil:
-				vc, err := h.Credentials.GetRuntime(ctx, obj.Namespace, volume.KS3.CredentialRef)
-				if err != nil {
-					return nil, mapper.RuntimeCredentials{}, err
-				}
-				runtimeCreds.KS3ByName[volume.KS3.CredentialRef.Name] = vc
-			case volume.KPFS != nil && volume.KPFS.CredentialRef != nil:
-				vc, err := h.Credentials.GetRuntime(ctx, obj.Namespace, volume.KPFS.CredentialRef)
-				if err != nil {
-					return nil, mapper.RuntimeCredentials{}, err
-				}
-				runtimeCreds.KPFSByName[volume.KPFS.CredentialRef.Name] = vc
-			}
-		}
-	}
-	if obj.Spec.Template != nil {
-		if observability := obj.Spec.Template.Spec.Observability; observability != nil && observability.Logging != nil {
-			runtimeCreds.Klog, err = h.Credentials.GetRuntime(ctx, obj.Namespace, observability.Logging.CredentialRef)
+		if tpl.StorageCredentialRef != nil && tpl.StorageCredentialRef.Name != "" {
+			runtimeCreds.Storage, err = h.Credentials.GetRuntime(ctx, obj.Namespace, tpl.StorageCredentialRef)
 			if err != nil {
 				return nil, mapper.RuntimeCredentials{}, err
 			}
@@ -415,14 +406,8 @@ func (h *Handler) sandboxCredentials(ctx context.Context, obj *sandboxv1.Sandbox
 		return nil, mapper.RuntimeCredentials{}, err
 	}
 	var runtimeCreds mapper.RuntimeCredentials
-	if obj.Spec.Ks3MountConfig != nil {
-		runtimeCreds.KS3, err = h.Credentials.GetRuntime(ctx, obj.Namespace, obj.Spec.Ks3MountConfig.CredentialRef)
-		if err != nil {
-			return nil, mapper.RuntimeCredentials{}, err
-		}
-	}
-	if obj.Spec.KpfsMountConfig != nil {
-		runtimeCreds.KPFS, err = h.Credentials.GetRuntime(ctx, obj.Namespace, obj.Spec.KpfsMountConfig.CredentialRef)
+	if obj.Spec.StorageCredentialRef != nil && obj.Spec.StorageCredentialRef.Name != "" {
+		runtimeCreds.Storage, err = h.Credentials.GetRuntime(ctx, obj.Namespace, obj.Spec.StorageCredentialRef)
 		if err != nil {
 			return nil, mapper.RuntimeCredentials{}, err
 		}
@@ -458,25 +443,14 @@ func (h *Handler) validateTemplateMountCredentialRefs(obj *sandboxv1.SandboxTemp
 	if obj.Spec.Template == nil {
 		return nil
 	}
-	if req.KS3MountConfig != nil && req.KS3MountConfig.EnableKS3 {
-		for _, volume := range obj.Spec.Template.Spec.Volumes {
-			if !strings.EqualFold(volume.Type, "ks3") || volume.KS3 == nil {
-				continue
-			}
-			if volume.KS3.CredentialRef == nil || volume.KS3.CredentialRef.Name == "" {
-				return fmt.Errorf("updating KS3 mount config requires credentialRef on all remaining KS3 volumes")
-			}
-		}
+	needStorage := (req.KS3MountConfig != nil && req.KS3MountConfig.EnableKS3) ||
+		(req.KPFSMountConfig != nil && req.KPFSMountConfig.EnableKPFS)
+	if !needStorage {
+		return nil
 	}
-	if req.KPFSMountConfig != nil && req.KPFSMountConfig.EnableKPFS {
-		for _, volume := range obj.Spec.Template.Spec.Volumes {
-			if !strings.EqualFold(volume.Type, "kpfs") || volume.KPFS == nil {
-				continue
-			}
-			if volume.KPFS.CredentialRef == nil || volume.KPFS.CredentialRef.Name == "" {
-				return fmt.Errorf("updating KPFS mount config requires credentialRef on all remaining KPFS volumes")
-			}
-		}
+	tpl := obj.Spec.Template.Spec
+	if tpl.StorageCredentialRef == nil || tpl.StorageCredentialRef.Name == "" {
+		return fmt.Errorf("KS3/KPFS mount config requires spec.template.spec.storageCredentialRef")
 	}
 	return nil
 }

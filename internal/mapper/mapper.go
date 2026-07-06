@@ -44,9 +44,9 @@ func TemplateCreateRequest(in *sandboxv1.SandboxTemplate, runtime RuntimeCredent
 		Envs:             templateEnv(tpl),
 		NetworkConfig:    templateNetwork(tpl),
 		PreheatConfig:    templatePreheat(spec),
-		KS3MountConfig:   templateMountToOpenAPI(tpl, "ks3", runtime.KS3ByName),
-		KPFSMountConfig:  templateMountToOpenAPI(tpl, "kpfs", runtime.KPFSByName),
-		KlogConfig:       templateKlogToOpenAPI(spec, runtime.Klog),
+		KS3MountConfig:   mountToOpenAPI(tpl.Ks3MountConfig, "ks3"),
+		KPFSMountConfig:  mountToOpenAPI(tpl.KpfsMountConfig, "kpfs"),
+		KlogConfig:       templateKlogToOpenAPI(spec),
 		SkillConfig:      templateSkillToOpenAPI(tpl),
 		InstanceQuota:    templatePoolInstanceQuota(spec),
 		AccessKey:        storageAccessKey(runtime),
@@ -108,11 +108,11 @@ func TemplateUpdateRequestFromDiff(in, old *sandboxv1.SandboxTemplate, runtime R
 	if !reflect.DeepEqual(templateSkillSpec(inTpl), templateSkillSpec(oldTpl)) {
 		req.SkillConfig = full.SkillConfig
 	}
-	ks3Changed := !reflect.DeepEqual(templateVolumes(inTpl, "ks3"), templateVolumes(oldTpl, "ks3"))
-	kpfsChanged := !reflect.DeepEqual(templateVolumes(inTpl, "kpfs"), templateVolumes(oldTpl, "kpfs"))
+	ks3Changed := !reflect.DeepEqual(inTpl.Ks3MountConfig, oldTpl.Ks3MountConfig)
+	kpfsChanged := !reflect.DeepEqual(inTpl.KpfsMountConfig, oldTpl.KpfsMountConfig)
 	if ks3Changed || kpfsChanged {
-		req.KS3MountConfig = templateMountUpdateToOpenAPI(inTpl, "ks3", runtime.KS3ByName)
-		req.KPFSMountConfig = templateMountUpdateToOpenAPI(inTpl, "kpfs", runtime.KPFSByName)
+		req.KS3MountConfig = mountUpdateToOpenAPI(inTpl.Ks3MountConfig, "ks3")
+		req.KPFSMountConfig = mountUpdateToOpenAPI(inTpl.KpfsMountConfig, "kpfs")
 		req.AccessKey = full.AccessKey
 		req.SecretAccessKey = full.SecretAccessKey
 	}
@@ -175,12 +175,8 @@ func SandboxUpdateRequest(in *sandboxv1.Sandbox) openapi.UpdateSandboxRequest {
 }
 
 type RuntimeCredentials struct {
-	KS3        *credentials.RuntimeCredential
-	KPFS       *credentials.RuntimeCredential
-	KS3ByName  map[string]*credentials.RuntimeCredential
-	KPFSByName map[string]*credentials.RuntimeCredential
-	Registry   *credentials.RegistryCredential
-	Klog       *credentials.RuntimeCredential
+	Storage  *credentials.RuntimeCredential
+	Registry *credentials.RegistryCredential
 }
 
 func ApplyTemplateSpecFromOpenAPI(obj *sandboxv1.SandboxTemplate, remote openapi.Template) {
@@ -258,7 +254,8 @@ func ApplySandboxStatusFromOpenAPI(obj *sandboxv1.Sandbox, remote openapi.Sandbo
 	}
 	obj.Status.SdnsURLs = copyStringMap(remote.SdnsURLs)
 	obj.Status.Env = sandboxEnvFromOpenAPI(remote.Envs)
-	obj.Status.Volumes = sandboxVolumesFromOpenAPI(remote)
+	obj.Status.Ks3MountConfig = mountConfigFromOpenAPI("ks3", remote.KS3MountConfig)
+	obj.Status.KpfsMountConfig = mountConfigFromOpenAPI("kpfs", remote.KPFSMountConfig)
 	obj.Status.CustomConfiguration = nil
 	if remote.CustomConfiguration != nil {
 		obj.Status.ImageURL = remote.CustomConfiguration.ImageURL
@@ -596,79 +593,41 @@ func templateKecConfig(tpl *sandboxv1.RuntimeTemplateSpec) *openapi.KecConfig {
 	}
 }
 
-func templateVolumes(tpl *sandboxv1.RuntimeTemplateSpec, kind string) []sandboxv1.TemplateVolume {
-	if tpl == nil || len(tpl.Volumes) == 0 {
+func mountConfigFromOpenAPI(kind string, cfg *openapi.MountConfig) *sandboxv1.MountConfig {
+	if cfg == nil {
 		return nil
 	}
-	out := make([]sandboxv1.TemplateVolume, 0, len(tpl.Volumes))
-	for _, volume := range tpl.Volumes {
-		if strings.EqualFold(volume.Type, kind) {
-			out = append(out, volume)
-		}
-	}
-	return out
-}
-
-func templateMountToOpenAPI(tpl *sandboxv1.RuntimeTemplateSpec, kind string, creds map[string]*credentials.RuntimeCredential) *openapi.MountConfig {
-	if tpl == nil || len(tpl.Volumes) == 0 {
-		return nil
-	}
-	out := &openapi.MountConfig{}
-	for _, volume := range tpl.Volumes {
-		if !strings.EqualFold(volume.Type, kind) {
-			continue
-		}
-		switch kind {
-		case "ks3":
-			out.EnableKS3 = true
-			if volume.KS3 == nil {
-				continue
-			}
-			out.MountPoints = append(out.MountPoints, openapi.MountPoint{
-				BucketName:     volume.KS3.Bucket,
-				RemotePath:     volume.KS3.Path,
-				LocalMountPath: volume.MountPath,
-				ReadOnly:       volume.ReadOnly,
-			})
-		case "kpfs":
-			out.EnableKPFS = true
-			if volume.KPFS == nil {
-				continue
-			}
-			point := openapi.MountPoint{
-				FileSystemName: volume.KPFS.FileSystem,
-				RemotePath:     volume.KPFS.Path,
-				LocalMountPath: volume.MountPath,
-				ReadOnly:       volume.ReadOnly,
-			}
-			if cred := creds[refName(volume.KPFS.CredentialRef)]; cred != nil {
-				point.Token = cred.Token
-			}
-			out.KPFSMounts = append(out.KPFSMounts, point)
-		}
-	}
-	if len(out.MountPoints) == 0 && len(out.KPFSMounts) == 0 {
-		return nil
-	}
-	return out
-}
-
-func templateMountUpdateToOpenAPI(tpl *sandboxv1.RuntimeTemplateSpec, kind string, creds map[string]*credentials.RuntimeCredential) *openapi.MountConfig {
-	out := templateMountToOpenAPI(tpl, kind, creds)
-	if out != nil {
-		return out
-	}
+	enabled := false
+	var points []sandboxv1.MountPoint
 	switch kind {
 	case "ks3":
-		return &openapi.MountConfig{EnableKS3: false}
+		enabled = cfg.EnableKS3
+		for _, p := range cfg.MountPoints {
+			points = append(points, sandboxv1.MountPoint{
+				BucketName:     p.BucketName,
+				RemotePath:     p.RemotePath,
+				LocalMountPath: p.LocalMountPath,
+				ReadOnly:       p.ReadOnly,
+			})
+		}
 	case "kpfs":
-		return &openapi.MountConfig{EnableKPFS: false}
-	default:
+		enabled = cfg.EnableKPFS
+		for _, p := range cfg.KPFSMounts {
+			points = append(points, sandboxv1.MountPoint{
+				FileSystemName: p.FileSystemName,
+				RemotePath:     p.RemotePath,
+				LocalMountPath: p.LocalMountPath,
+				ReadOnly:       p.ReadOnly,
+			})
+		}
+	}
+	if !enabled && len(points) == 0 {
 		return nil
 	}
+	return &sandboxv1.MountConfig{Enabled: enabled, MountPoints: points}
 }
 
-func templateKlogToOpenAPI(spec sandboxv1.SandboxTemplateSpec, cred *credentials.RuntimeCredential) *openapi.KlogConfig {
+func templateKlogToOpenAPI(spec sandboxv1.SandboxTemplateSpec) *openapi.KlogConfig {
 	if observability := templateObservabilitySpec(templateSpec(spec)); observability != nil && observability.Logging != nil {
 		logging := observability.Logging
 		return &openapi.KlogConfig{Enabled: logging.Enabled}
@@ -745,7 +704,8 @@ func applyRuntimeSpecFromOpenAPI(obj *sandboxv1.SandboxTemplate, remote openapi.
 	} else {
 		tpl.DataDisks = nil
 	}
-	tpl.Volumes = volumesFromOpenAPI(remote)
+	tpl.Ks3MountConfig = mountConfigFromOpenAPI("ks3", remote.KS3MountConfig)
+	tpl.KpfsMountConfig = mountConfigFromOpenAPI("kpfs", remote.KPFSMountConfig)
 	if remote.KlogConfig != nil {
 		tpl.Observability = &sandboxv1.ObservabilitySpec{
 			Logging: &sandboxv1.LoggingSpec{
@@ -809,70 +769,6 @@ func dataDisksFromOpenAPI(in []openapi.DataDisk) []sandboxv1.DataDiskSpec {
 	return out
 }
 
-func volumesFromOpenAPI(remote openapi.Template) []sandboxv1.TemplateVolume {
-	return volumesFromMountConfigs(remote.KS3MountConfig, remote.KPFSMountConfig)
-}
-
-func sandboxVolumesFromOpenAPI(remote openapi.Sandbox) []sandboxv1.TemplateVolume {
-	return volumesFromMountConfigs(remote.KS3MountConfig, remote.KPFSMountConfig)
-}
-
-func volumesFromMountConfigs(ks3Config, kpfsConfig *openapi.MountConfig) []sandboxv1.TemplateVolume {
-	var out []sandboxv1.TemplateVolume
-	if ks3Config != nil {
-		for i, point := range ks3Config.Points() {
-			out = append(out, sandboxv1.TemplateVolume{
-				Name:      volumeName("ks3", point.BucketName, i),
-				Type:      "KS3",
-				MountPath: point.LocalMountPath,
-				ReadOnly:  point.ReadOnly,
-				KS3: &sandboxv1.KS3VolumeSource{
-					Bucket: point.BucketName,
-					Path:   point.RemotePath,
-				},
-			})
-		}
-	}
-	if kpfsConfig != nil {
-		for i, point := range kpfsConfig.Points() {
-			out = append(out, sandboxv1.TemplateVolume{
-				Name:      volumeName("kpfs", point.FileSystemName, i),
-				Type:      "KPFS",
-				MountPath: point.LocalMountPath,
-				ReadOnly:  point.ReadOnly,
-				KPFS: &sandboxv1.KPFSVolumeSource{
-					FileSystem: point.FileSystemName,
-					Path:       point.RemotePath,
-				},
-			})
-		}
-	}
-	return out
-}
-
-func volumeName(prefix, value string, index int) string {
-	value = strings.Trim(strings.ToLower(value), "-.")
-	if value == "" {
-		return prefix + "-" + strconv.Itoa(index)
-	}
-	var b strings.Builder
-	for _, r := range value {
-		switch {
-		case r >= 'a' && r <= 'z':
-			b.WriteRune(r)
-		case r >= '0' && r <= '9':
-			b.WriteRune(r)
-		default:
-			b.WriteByte('-')
-		}
-	}
-	out := strings.Trim(b.String(), "-")
-	if out == "" {
-		out = strconv.Itoa(index)
-	}
-	return prefix + "-" + out
-}
-
 func registryServer(in *credentials.RegistryCredential) string {
 	if in == nil {
 		return ""
@@ -895,61 +791,29 @@ func registryPassword(in *credentials.RegistryCredential) string {
 }
 
 func storageAccessKey(runtime RuntimeCredentials) string {
-	if runtime.KS3 != nil && runtime.KS3.AccessKey != "" {
-		return runtime.KS3.AccessKey
-	}
-	if runtime.KPFS != nil && runtime.KPFS.AccessKey != "" {
-		return runtime.KPFS.AccessKey
-	}
-	for _, cred := range runtime.KS3ByName {
-		if cred != nil && cred.AccessKey != "" {
-			return cred.AccessKey
-		}
-	}
-	for _, cred := range runtime.KPFSByName {
-		if cred != nil && cred.AccessKey != "" {
-			return cred.AccessKey
-		}
+	if runtime.Storage != nil {
+		return runtime.Storage.AccessKey
 	}
 	return ""
 }
 
 func storageSecretAccessKey(runtime RuntimeCredentials) string {
-	if runtime.KS3 != nil && runtime.KS3.SecretAccessKey != "" {
-		return runtime.KS3.SecretAccessKey
-	}
-	if runtime.KPFS != nil && runtime.KPFS.SecretAccessKey != "" {
-		return runtime.KPFS.SecretAccessKey
-	}
-	for _, cred := range runtime.KS3ByName {
-		if cred != nil && cred.SecretAccessKey != "" {
-			return cred.SecretAccessKey
-		}
-	}
-	for _, cred := range runtime.KPFSByName {
-		if cred != nil && cred.SecretAccessKey != "" {
-			return cred.SecretAccessKey
-		}
+	if runtime.Storage != nil {
+		return runtime.Storage.SecretAccessKey
 	}
 	return ""
 }
 
 func sandboxStorageAccessKey(runtime RuntimeCredentials) string {
-	if runtime.KS3 != nil && runtime.KS3.AccessKey != "" {
-		return runtime.KS3.AccessKey
-	}
-	if runtime.KPFS != nil {
-		return runtime.KPFS.AccessKey
+	if runtime.Storage != nil {
+		return runtime.Storage.AccessKey
 	}
 	return ""
 }
 
 func sandboxStorageSecretAccessKey(runtime RuntimeCredentials) string {
-	if runtime.KS3 != nil && runtime.KS3.SecretAccessKey != "" {
-		return runtime.KS3.SecretAccessKey
-	}
-	if runtime.KPFS != nil {
-		return runtime.KPFS.SecretAccessKey
+	if runtime.Storage != nil {
+		return runtime.Storage.SecretAccessKey
 	}
 	return ""
 }
@@ -1057,6 +921,20 @@ func mountToOpenAPI(in *sandboxv1.MountConfig, kind string) *openapi.MountConfig
 	return out
 }
 
+func mountUpdateToOpenAPI(cfg *sandboxv1.MountConfig, kind string) *openapi.MountConfig {
+	if cfg != nil && cfg.Enabled {
+		return mountToOpenAPI(cfg, kind)
+	}
+	switch kind {
+	case "ks3":
+		return &openapi.MountConfig{EnableKS3: false}
+	case "kpfs":
+		return &openapi.MountConfig{EnableKPFS: false}
+	default:
+		return nil
+	}
+}
+
 func mountPointsToOpenAPI(in []sandboxv1.MountPoint) []openapi.MountPoint {
 	out := make([]openapi.MountPoint, 0, len(in))
 	for _, item := range in {
@@ -1095,48 +973,6 @@ func envsFromMap(in map[string]string) []sandboxv1.EnvVar {
 	out := make([]sandboxv1.EnvVar, 0, len(in))
 	for key, value := range in {
 		out = append(out, sandboxv1.EnvVar{Key: key, Value: value})
-	}
-	return out
-}
-
-func sandboxMetadata(spec sandboxv1.SandboxSpec, runtime RuntimeCredentials) map[string]interface{} {
-	metadata := map[string]interface{}{}
-	var mounts []map[string]interface{}
-	mounts = appendVolumeMounts(mounts, "ks3", spec.Ks3MountConfig, runtime.KS3)
-	mounts = appendVolumeMounts(mounts, "kpfs", spec.KpfsMountConfig, runtime.KPFS)
-	if len(mounts) > 0 {
-		metadata["volumeMounts"] = mounts
-	}
-	if len(metadata) == 0 {
-		return nil
-	}
-	return metadata
-}
-
-func appendVolumeMounts(out []map[string]interface{}, kind string, cfg *sandboxv1.MountConfig, cred *credentials.RuntimeCredential) []map[string]interface{} {
-	if cfg == nil || !cfg.Enabled {
-		return out
-	}
-	for _, mount := range cfg.MountPoints {
-		item := map[string]interface{}{
-			"type":     kind,
-			"target":   mount.LocalMountPath,
-			"readOnly": mount.ReadOnly,
-		}
-		switch kind {
-		case "ks3":
-			item["source"] = mount.BucketName + mount.RemotePath
-		case "kpfs":
-			item["source"] = mount.FileSystemName + mount.RemotePath
-		}
-		if cred != nil {
-			item["accessKeyId"] = cred.AccessKey
-			item["accessKeySecret"] = cred.SecretAccessKey
-			if cred.Token != "" {
-				item["token"] = cred.Token
-			}
-		}
-		out = append(out, item)
 	}
 	return out
 }

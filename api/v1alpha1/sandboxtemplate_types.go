@@ -9,7 +9,7 @@ import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 // +kubebuilder:printcolumn:name="Type",type=string,JSONPath=".spec.type"
 // +kubebuilder:printcolumn:name="Access",type=string,JSONPath=".spec.access"
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=".status.phase"
-// +kubebuilder:printcolumn:name="Target",type=integer,JSONPath=".spec.template.spec.pool.targetSize"
+// +kubebuilder:printcolumn:name="Target",type=integer,JSONPath=".status.preheat.number"
 // +kubebuilder:printcolumn:name="Preheated",type=integer,JSONPath=".status.preheat.preheatedInstanceNumber"
 // +kubebuilder:printcolumn:name="Updated",type=date,JSONPath=".status.externalUpdatedAt"
 type SandboxTemplate struct {

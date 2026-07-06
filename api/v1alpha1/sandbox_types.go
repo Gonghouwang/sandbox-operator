@@ -25,6 +25,7 @@ type SandboxSpec struct {
 	TemplateRef          TemplateReference           `json:"templateRef"`
 	TimeoutSeconds       int                         `json:"timeoutSeconds,omitempty"`
 	Env                  []EnvVar                    `json:"env,omitempty"`
+	StorageCredentialRef *LocalObjectReference       `json:"storageCredentialRef,omitempty"`
 	Ks3MountConfig       *MountConfig                `json:"ks3MountConfig,omitempty"`
 	KpfsMountConfig      *MountConfig                `json:"kpfsMountConfig,omitempty"`
 }
@@ -44,7 +45,8 @@ type SandboxStatus struct {
 	Port                int                         `json:"port,omitempty"`
 	Command             string                      `json:"command,omitempty"`
 	Env                 []EnvVar                    `json:"env,omitempty"`
-	Volumes             []TemplateVolume            `json:"volumes,omitempty"`
+	Ks3MountConfig      *MountConfig                `json:"ks3MountConfig,omitempty"`
+	KpfsMountConfig     *MountConfig                `json:"kpfsMountConfig,omitempty"`
 	CustomConfiguration *SandboxCustomConfiguration `json:"customConfiguration,omitempty"`
 	CredentialDrift     *CredentialDriftSet         `json:"credentialDrift,omitempty"`
 	Conditions          []metav1.Condition          `json:"conditions,omitempty"`

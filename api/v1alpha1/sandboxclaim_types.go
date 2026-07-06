@@ -19,6 +19,7 @@ type SandboxClaimSpec struct {
 	TemplateRef          TemplateReference           `json:"templateRef"`
 	TimeoutSeconds       int                         `json:"timeoutSeconds,omitempty"`
 	Env                  []EnvVar                    `json:"env,omitempty"`
+	StorageCredentialRef *LocalObjectReference       `json:"storageCredentialRef,omitempty"`
 	Ks3MountConfig       *MountConfig                `json:"ks3MountConfig,omitempty"`
 	KpfsMountConfig      *MountConfig                `json:"kpfsMountConfig,omitempty"`
 }

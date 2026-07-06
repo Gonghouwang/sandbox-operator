@@ -60,17 +60,19 @@ type RuntimeTemplate struct {
 }
 
 type RuntimeTemplateSpec struct {
-	Image         *TemplateImageSpec    `json:"image,omitempty"`
-	Resources     *RuntimeResourceSpec  `json:"resources,omitempty"`
-	Ports         []ContainerPortSpec   `json:"ports,omitempty"`
-	StartCommand  string                `json:"startCommand,omitempty"`
-	Env           []TemplateEnvVar      `json:"env,omitempty"`
-	Volumes       []TemplateVolume      `json:"volumes,omitempty"`
-	NetworkConfig *OpenAPINetworkConfig `json:"networkConfig,omitempty"`
-	SkillConfig   *SkillConfig          `json:"skillConfig,omitempty"`
-	DataDisks     []DataDiskSpec        `json:"dataDisks,omitempty"`
-	Pool          *TemplatePoolSpec     `json:"pool,omitempty"`
-	Observability *ObservabilitySpec    `json:"observability,omitempty"`
+	Image                *TemplateImageSpec    `json:"image,omitempty"`
+	Resources            *RuntimeResourceSpec  `json:"resources,omitempty"`
+	Ports                []ContainerPortSpec   `json:"ports,omitempty"`
+	StartCommand         string                `json:"startCommand,omitempty"`
+	Env                  []TemplateEnvVar      `json:"env,omitempty"`
+	StorageCredentialRef *LocalObjectReference `json:"storageCredentialRef,omitempty"`
+	Ks3MountConfig       *MountConfig          `json:"ks3MountConfig,omitempty"`
+	KpfsMountConfig      *MountConfig          `json:"kpfsMountConfig,omitempty"`
+	NetworkConfig        *OpenAPINetworkConfig `json:"networkConfig,omitempty"`
+	SkillConfig          *SkillConfig          `json:"skillConfig,omitempty"`
+	DataDisks            []DataDiskSpec        `json:"dataDisks,omitempty"`
+	Pool                 *TemplatePoolSpec     `json:"pool,omitempty"`
+	Observability        *ObservabilitySpec    `json:"observability,omitempty"`
 }
 
 type TemplateImageSpec struct {
@@ -94,27 +96,6 @@ type ContainerPortSpec struct {
 type TemplateEnvVar struct {
 	Name  string `json:"name"`
 	Value string `json:"value,omitempty"`
-}
-
-type TemplateVolume struct {
-	Name      string            `json:"name,omitempty"`
-	Type      string            `json:"type,omitempty"`
-	MountPath string            `json:"mountPath,omitempty"`
-	ReadOnly  bool              `json:"readOnly,omitempty"`
-	KS3       *KS3VolumeSource  `json:"ks3,omitempty"`
-	KPFS      *KPFSVolumeSource `json:"kpfs,omitempty"`
-}
-
-type KS3VolumeSource struct {
-	Bucket        string                `json:"bucket,omitempty"`
-	Path          string                `json:"path,omitempty"`
-	CredentialRef *LocalObjectReference `json:"credentialRef,omitempty"`
-}
-
-type KPFSVolumeSource struct {
-	FileSystem    string                `json:"fileSystem,omitempty"`
-	Path          string                `json:"path,omitempty"`
-	CredentialRef *LocalObjectReference `json:"credentialRef,omitempty"`
 }
 
 type OpenAPINetworkConfig struct {
@@ -199,9 +180,8 @@ type KlogSpec struct {
 }
 
 type MountConfig struct {
-	Enabled       bool                  `json:"enabled,omitempty"`
-	CredentialRef *LocalObjectReference `json:"credentialRef,omitempty"`
-	MountPoints   []MountPoint          `json:"mountPoints,omitempty"`
+	Enabled     bool         `json:"enabled,omitempty"`
+	MountPoints []MountPoint `json:"mountPoints,omitempty"`
 }
 
 type MountPoint struct {
