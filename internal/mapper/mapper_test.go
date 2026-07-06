@@ -97,9 +97,10 @@ func TestTemplateUpdateRequestFromDiffSendsDiskAsKecConfig(t *testing.T) {
 	old := templateWithKS3("old description", "/mnt/old")
 	next := templateWithKS3("old description", "/mnt/old")
 	next.Spec.Template.Spec.Resources.Disk = resource.MustParse("80Gi")
+	next.Spec.Template.Spec.Kec = &sandboxv1.KecSpec{InstanceType: "N3.2B", SystemDiskType: "ESSD_PL0"}
 
 	req := TemplateUpdateRequestFromDiff(next, old, RuntimeCredentials{})
-	if req.KecConfig == nil || !req.KecConfig.Enabled || req.KecConfig.SystemDiskSizeGB != 80 {
+	if req.KecConfig == nil || !req.KecConfig.Enabled || req.KecConfig.InstanceType != "N3.2B" || req.KecConfig.SystemDiskType != "ESSD_PL0" || req.KecConfig.SystemDiskSizeGB != 80 {
 		t.Fatalf("disk diff should send KecConfig with SystemDiskSize=80Gi, got %#v", req.KecConfig)
 	}
 
@@ -113,6 +114,44 @@ func TestTemplateUpdateRequestFromDiffSendsDiskAsKecConfig(t *testing.T) {
 	}
 	if req.KecConfig.InstanceType != "N3.2B" || req.KecConfig.SystemDiskType != "ESSD_PL0" || req.KecConfig.SystemDiskSizeGB != 80 {
 		t.Fatalf("remote KecConfig completion failed: %#v", req.KecConfig)
+	}
+}
+
+func TestTemplateCreateRequestSendsKecConfig(t *testing.T) {
+	obj := templateWithKS3("description", "/mnt/data")
+	obj.Spec.Template.Spec.Resources.Disk = resource.MustParse("80Gi")
+	obj.Spec.Template.Spec.Kec = &sandboxv1.KecSpec{InstanceType: "N3.2B", SystemDiskType: "ESSD_PL0"}
+	obj.Spec.Template.Spec.DataDisks = []sandboxv1.DataDiskSpec{{
+		Name:               "data-0",
+		Type:               "ESSD_PL0",
+		SizeMB:             51200,
+		DeleteWithInstance: true,
+		Path:               "/data",
+	}}
+
+	req := TemplateCreateRequest(obj, RuntimeCredentials{})
+	if req.KecConfig == nil || !req.KecConfig.Enabled {
+		t.Fatalf("create request should include KecConfig: %#v", req.KecConfig)
+	}
+	if req.KecConfig.InstanceType != "N3.2B" || req.KecConfig.SystemDiskType != "ESSD_PL0" || req.KecConfig.SystemDiskSizeGB != 80 {
+		t.Fatalf("create KecConfig basic fields mismatch: %#v", req.KecConfig)
+	}
+	if len(req.KecConfig.DataDisks) != 1 || req.KecConfig.DataDisks[0].Type != "ESSD_PL0" || req.KecConfig.DataDisks[0].SizeGB != 50 {
+		t.Fatalf("create KecConfig data disks mismatch: %#v", req.KecConfig.DataDisks)
+	}
+}
+
+func TestTemplateUpdateRequestFromDiffSendsKecSpecChange(t *testing.T) {
+	old := templateWithKS3("old description", "/mnt/old")
+	old.Spec.Template.Spec.Resources.Disk = resource.MustParse("80Gi")
+	old.Spec.Template.Spec.Kec = &sandboxv1.KecSpec{InstanceType: "N3.2B", SystemDiskType: "ESSD_PL0"}
+	next := templateWithKS3("old description", "/mnt/old")
+	next.Spec.Template.Spec.Resources.Disk = resource.MustParse("80Gi")
+	next.Spec.Template.Spec.Kec = &sandboxv1.KecSpec{InstanceType: "N3.4B", SystemDiskType: "ESSD_PL0"}
+
+	req := TemplateUpdateRequestFromDiff(next, old, RuntimeCredentials{})
+	if req.KecConfig == nil || req.KecConfig.InstanceType != "N3.4B" || req.KecConfig.SystemDiskType != "ESSD_PL0" || req.KecConfig.SystemDiskSizeGB != 80 {
+		t.Fatalf("kec spec diff should send KecConfig: %#v", req.KecConfig)
 	}
 }
 
@@ -135,9 +174,16 @@ func TestTemplatePoolAndObservabilityLiveUnderRuntimeSpec(t *testing.T) {
 	ApplyTemplateSpecFromOpenAPI(&synced, openapi.Template{
 		TemplateType:     "custom",
 		TemplateCategory: "Private",
+		KecConfig:        &openapi.KecConfig{InstanceType: "N3.2B", SystemDiskType: "ESSD_PL0", SystemDiskSizeGB: 80},
 		PreheatConfig:    &openapi.PreheatConfig{PreheatEnable: true, PreheatNumber: 3},
 		KlogConfig:       &openapi.KlogConfig{Enabled: true, ProjectName: "project", PoolName: "pool"},
 	})
+	if synced.Spec.Template.Spec.Kec == nil || synced.Spec.Template.Spec.Kec.InstanceType != "N3.2B" || synced.Spec.Template.Spec.Kec.SystemDiskType != "ESSD_PL0" {
+		t.Fatalf("remote kec was not written under template.spec.kec: %#v", synced.Spec.Template.Spec.Kec)
+	}
+	if synced.Spec.Template.Spec.Resources == nil || synced.Spec.Template.Spec.Resources.Disk.String() != "80Gi" {
+		t.Fatalf("remote system disk was not written under template.spec.resources.disk: %#v", synced.Spec.Template.Spec.Resources)
+	}
 	if synced.Spec.Template == nil || synced.Spec.Template.Spec.Pool == nil || synced.Spec.Template.Spec.Pool.TargetSize != 3 {
 		t.Fatalf("remote preheat was not written under template.spec.pool: %#v", synced.Spec.Template)
 	}

@@ -70,6 +70,7 @@ type RuntimeTemplateSpec struct {
 	KpfsMountConfig      *MountConfig          `json:"kpfsMountConfig,omitempty"`
 	NetworkConfig        *OpenAPINetworkConfig `json:"networkConfig,omitempty"`
 	SkillConfig          *SkillConfig          `json:"skillConfig,omitempty"`
+	Kec                  *KecSpec              `json:"kec,omitempty"`
 	DataDisks            []DataDiskSpec        `json:"dataDisks,omitempty"`
 	Pool                 *TemplatePoolSpec     `json:"pool,omitempty"`
 	Observability        *ObservabilitySpec    `json:"observability,omitempty"`
@@ -121,6 +122,11 @@ type DataDiskSpec struct {
 	SizeMB             int64  `json:"sizeMB,omitempty"`
 	DeleteWithInstance bool   `json:"deleteWithInstance,omitempty"`
 	Path               string `json:"path,omitempty"`
+}
+
+type KecSpec struct {
+	InstanceType   string `json:"instanceType,omitempty"`
+	SystemDiskType string `json:"systemDiskType,omitempty"`
 }
 
 type TemplatePoolSpec struct {

@@ -41,6 +41,7 @@ func TemplateCreateRequest(in *sandboxv1.SandboxTemplate, runtime RuntimeCredent
 		Ports:            templatePorts(tpl),
 		CPU:              templateCPU(tpl),
 		Memory:           templateMemoryGB(tpl),
+		KecConfig:        templateKecConfig(tpl),
 		Envs:             templateEnv(tpl),
 		NetworkConfig:    templateNetwork(tpl),
 		PreheatConfig:    templatePreheat(spec),
@@ -97,6 +98,9 @@ func TemplateUpdateRequestFromDiff(in, old *sandboxv1.SandboxTemplate, runtime R
 		}
 	}
 	if !reflect.DeepEqual(templateDataDiskSpec(inTpl), templateDataDiskSpec(oldTpl)) {
+		req.KecConfig = templateKecConfig(inTpl)
+	}
+	if !reflect.DeepEqual(templateKecSpec(inTpl), templateKecSpec(oldTpl)) {
 		req.KecConfig = templateKecConfig(inTpl)
 	}
 	if !reflect.DeepEqual(templateEnvSpec(inTpl), templateEnvSpec(oldTpl)) {
@@ -491,6 +495,13 @@ func templateDataDiskSpec(tpl *sandboxv1.RuntimeTemplateSpec) []sandboxv1.DataDi
 	return tpl.DataDisks
 }
 
+func templateKecSpec(tpl *sandboxv1.RuntimeTemplateSpec) *sandboxv1.KecSpec {
+	if tpl == nil {
+		return nil
+	}
+	return tpl.Kec
+}
+
 func templateMemoryMB(tpl *sandboxv1.RuntimeTemplateSpec) int {
 	if tpl != nil && tpl.Resources != nil && !tpl.Resources.Memory.IsZero() {
 		return quantityMB(tpl.Resources.Memory.Value())
@@ -583,14 +594,20 @@ func templatePoolInstanceQuota(spec sandboxv1.SandboxTemplateSpec) int {
 func templateKecConfig(tpl *sandboxv1.RuntimeTemplateSpec) *openapi.KecConfig {
 	systemDiskSizeGB := templateDiskGB(tpl)
 	dataDisks := templateDataDisks(tpl)
-	if systemDiskSizeGB == 0 && len(dataDisks) == 0 {
+	kec := templateKecSpec(tpl)
+	if systemDiskSizeGB == 0 && len(dataDisks) == 0 && (kec == nil || (kec.InstanceType == "" && kec.SystemDiskType == "")) {
 		return nil
 	}
-	return &openapi.KecConfig{
+	out := &openapi.KecConfig{
 		Enabled:          true,
 		SystemDiskSizeGB: systemDiskSizeGB,
 		DataDisks:        dataDisks,
 	}
+	if kec != nil {
+		out.InstanceType = kec.InstanceType
+		out.SystemDiskType = kec.SystemDiskType
+	}
+	return out
 }
 
 func mountConfigFromOpenAPI(kind string, cfg *openapi.MountConfig) *sandboxv1.MountConfig {
@@ -699,6 +716,14 @@ func applyRuntimeSpecFromOpenAPI(obj *sandboxv1.SandboxTemplate, remote openapi.
 	}
 	tpl.NetworkConfig = networkConfigFromOpenAPI(remote.NetworkConfig)
 	tpl.SkillConfig = skillFromOpenAPI(remote.SkillConfig)
+	if remote.KecConfig != nil && (remote.KecConfig.InstanceType != "" || remote.KecConfig.SystemDiskType != "") {
+		tpl.Kec = &sandboxv1.KecSpec{
+			InstanceType:   remote.KecConfig.InstanceType,
+			SystemDiskType: remote.KecConfig.SystemDiskType,
+		}
+	} else {
+		tpl.Kec = nil
+	}
 	if remote.KecConfig != nil && len(remote.KecConfig.DataDisks) > 0 {
 		tpl.DataDisks = dataDisksFromOpenAPI(remote.KecConfig.DataDisks)
 	} else {

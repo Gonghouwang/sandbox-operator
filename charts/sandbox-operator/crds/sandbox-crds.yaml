@@ -185,6 +185,13 @@ spec:
                                 type: string
                             enablePublicSkill:
                               type: boolean
+                        kec:
+                          type: object
+                          properties:
+                            instanceType:
+                              type: string
+                            systemDiskType:
+                              type: string
                         dataDisks:
                           type: array
                           items:
