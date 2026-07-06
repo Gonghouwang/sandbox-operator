@@ -178,6 +178,9 @@ func (h *Handler) handleSandbox(ctx context.Context, req admission.Request) admi
 		if err := h.Decoder.Decode(req, &obj); err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
 		}
+		if err := h.validateSandboxTemplateSource(&obj); err != nil {
+			return admission.Denied(err.Error())
+		}
 		if err := h.validateSandboxName(ctx, &obj, ""); err != nil {
 			return admission.Denied(err.Error())
 		}
@@ -192,6 +195,9 @@ func (h *Handler) handleSandbox(ctx context.Context, req admission.Request) admi
 			return admission.Errored(http.StatusBadRequest, err)
 		}
 		if err := h.validateReservedAnnotationsUnchanged(&old, &obj); err != nil {
+			return admission.Denied(err.Error())
+		}
+		if err := h.validateSandboxTemplateSource(&obj); err != nil {
 			return admission.Denied(err.Error())
 		}
 		if err := h.validateSandboxName(ctx, &obj, old.Name); err != nil {
@@ -292,13 +298,43 @@ func (h *Handler) mutateSandboxCreate(ctx context.Context, req admission.Request
 	if err := h.validateSandboxName(ctx, &obj, ""); err != nil {
 		return admission.Denied(err.Error())
 	}
-	templateID, err := h.resolveTemplateID(ctx, &obj)
-	if err != nil {
+	if err := h.validateSandboxTemplateSource(&obj); err != nil {
 		return admission.Denied(err.Error())
 	}
 	cred, runtimeCreds, err := h.sandboxCredentials(ctx, &obj)
 	if err != nil {
 		return admission.Denied(err.Error())
+	}
+	templateID := ""
+	if obj.Spec.Template != nil {
+		inlineTemplate := mapper.SandboxInlineTemplateObject(&obj)
+		if err := h.validateTemplate(inlineTemplate); err != nil {
+			return admission.Denied(err.Error())
+		}
+		templateCred, templateRuntimeCreds, err := h.templateCredentials(ctx, inlineTemplate)
+		if err != nil {
+			return admission.Denied(err.Error())
+		}
+		templateReq := mapper.TemplateCreateRequest(inlineTemplate, templateRuntimeCreds)
+		if mapper.TemplateCreateRequestNeedsStorageCredential(templateReq) && (templateReq.AccessKey == "" || templateReq.SecretAccessKey == "") {
+			return admission.Denied("creating an inline template with KS3/KPFS mount config requires spec.template.spec.storageCredentialRef that points to a Secret with accessKey and secretAccessKey")
+		}
+		if err := h.validateTemplateCreateMountCredentialRefs(inlineTemplate, templateReq); err != nil {
+			return admission.Denied(err.Error())
+		}
+		created, err := h.OpenAPI.CreateTemplate(ctx, mapper.OpenAPICredential(templateCred), templateReq)
+		if err != nil {
+			return admission.Denied(err.Error())
+		}
+		templateID = created.Identifier()
+		obj.Annotations = annotations.Set(obj.Annotations, annotations.TemplateID, templateID)
+		obj.Annotations = annotations.Set(obj.Annotations, annotations.InlineTemplate, "true")
+	} else {
+		var err error
+		templateID, err = h.resolveTemplateID(ctx, &obj)
+		if err != nil {
+			return admission.Denied(err.Error())
+		}
 	}
 	startReq := mapper.SandboxStartRequest(&obj, templateID, runtimeCreds)
 	if mapper.SandboxRequestNeedsStorageCredential(startReq) && (startReq.AccessKey == "" || startReq.SecretAccessKey == "") {
@@ -306,6 +342,9 @@ func (h *Handler) mutateSandboxCreate(ctx context.Context, req admission.Request
 	}
 	started, err := h.OpenAPI.StartSandbox(ctx, mapper.OpenAPICredential(cred), startReq)
 	if err != nil {
+		if annotations.Get(obj.Annotations, annotations.InlineTemplate) == "true" && templateID != "" {
+			_ = h.OpenAPI.DeleteTemplate(ctx, mapper.OpenAPICredential(cred), templateID)
+		}
 		return admission.Denied(err.Error())
 	}
 	obj.Annotations = annotations.Set(obj.Annotations, annotations.TemplateID, started.TemplateIdentifier())
@@ -463,6 +502,40 @@ func (h *Handler) validateTemplateMountCredentialRefs(obj *sandboxv1.SandboxTemp
 	tpl := obj.Spec.Template.Spec
 	if tpl.StorageCredentialRef == nil || tpl.StorageCredentialRef.Name == "" {
 		return fmt.Errorf("KS3/KPFS mount config requires spec.template.spec.storageCredentialRef")
+	}
+	return nil
+}
+
+func (h *Handler) validateTemplateCreateMountCredentialRefs(obj *sandboxv1.SandboxTemplate, req openapi.CreateTemplateRequest) error {
+	if obj.Spec.Template == nil {
+		return nil
+	}
+	needStorage := (req.KS3MountConfig != nil && req.KS3MountConfig.EnableKS3) ||
+		(req.KPFSMountConfig != nil && req.KPFSMountConfig.EnableKPFS)
+	if !needStorage {
+		return nil
+	}
+	tpl := obj.Spec.Template.Spec
+	if tpl.StorageCredentialRef == nil || tpl.StorageCredentialRef.Name == "" {
+		return fmt.Errorf("KS3/KPFS mount config requires spec.template.spec.storageCredentialRef")
+	}
+	return nil
+}
+
+func (h *Handler) validateSandboxTemplateSource(obj *sandboxv1.Sandbox) error {
+	hasTemplateRef := obj.Spec.TemplateRef.ID != "" || obj.Spec.TemplateRef.Name != ""
+	hasInlineTemplate := obj.Spec.Template != nil
+	if hasTemplateRef && hasInlineTemplate {
+		return fmt.Errorf("spec.templateRef and spec.template are mutually exclusive")
+	}
+	if !hasTemplateRef && !hasInlineTemplate {
+		return fmt.Errorf("spec.templateRef or spec.template is required")
+	}
+	if hasInlineTemplate {
+		inlineTemplate := mapper.SandboxInlineTemplateObject(obj)
+		if err := h.validateTemplate(inlineTemplate); err != nil {
+			return err
+		}
 	}
 	return nil
 }

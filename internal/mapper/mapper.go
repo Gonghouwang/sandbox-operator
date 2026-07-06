@@ -55,6 +55,40 @@ func TemplateCreateRequest(in *sandboxv1.SandboxTemplate, runtime RuntimeCredent
 	}
 }
 
+func SandboxInlineTemplateObject(in *sandboxv1.Sandbox) *sandboxv1.SandboxTemplate {
+	if in == nil || in.Spec.Template == nil {
+		return nil
+	}
+	inline := in.Spec.Template
+	name := inline.Name
+	if name == "" {
+		name = in.Spec.Name
+		if name == "" {
+			name = in.Name
+		}
+		if name == "" {
+			name = "inline-template"
+		} else {
+			name += "-inline-template"
+		}
+	}
+	return &sandboxv1.SandboxTemplate{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: in.Namespace,
+			Name:      name,
+		},
+		Spec: sandboxv1.SandboxTemplateSpec{
+			Description:          inline.Description,
+			Type:                 inline.Type,
+			Access:               inline.Access,
+			OpenAPICredentialRef: in.Spec.OpenAPICredentialRef,
+			Template: &sandboxv1.RuntimeTemplate{
+				Spec: inline.Spec,
+			},
+		},
+	}
+}
+
 func TemplateUpdateRequest(in *sandboxv1.SandboxTemplate, runtime RuntimeCredentials) openapi.UpdateTemplateRequest {
 	req := TemplateCreateRequest(in, runtime)
 	return openapi.UpdateTemplateRequest{
@@ -130,6 +164,11 @@ func TemplateUpdateRequestFromDiff(in, old *sandboxv1.SandboxTemplate, runtime R
 }
 
 func TemplateRequestNeedsStorageCredential(req openapi.UpdateTemplateRequest) bool {
+	return (req.KS3MountConfig != nil && req.KS3MountConfig.EnableKS3) ||
+		(req.KPFSMountConfig != nil && req.KPFSMountConfig.EnableKPFS)
+}
+
+func TemplateCreateRequestNeedsStorageCredential(req openapi.CreateTemplateRequest) bool {
 	return (req.KS3MountConfig != nil && req.KS3MountConfig.EnableKS3) ||
 		(req.KPFSMountConfig != nil && req.KPFSMountConfig.EnableKPFS)
 }
@@ -235,7 +274,7 @@ func ApplySandboxSpecFromOpenAPI(obj *sandboxv1.Sandbox, remote openapi.Sandbox)
 			obj.Spec.Name = obj.Name
 		}
 	}
-	if obj.Spec.TemplateRef.ID == "" && remote.TemplateIdentifier() != "" {
+	if obj.Spec.Template == nil && obj.Spec.TemplateRef.ID == "" && remote.TemplateIdentifier() != "" {
 		obj.Spec.TemplateRef.ID = remote.TemplateIdentifier()
 	}
 	if remote.Timeout > 0 {

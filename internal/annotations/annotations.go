@@ -5,17 +5,19 @@ import "encoding/json"
 const (
 	Prefix = "sandbox.kce.ksyun.com/"
 
-	TemplateID = Prefix + "template-id"
-	SandboxID  = Prefix + "sandbox-id"
-	SandboxIDs = Prefix + "sandbox-ids"
-	Endpoint   = Prefix + "endpoint"
-	Token      = Prefix + "token"
+	TemplateID     = Prefix + "template-id"
+	SandboxID      = Prefix + "sandbox-id"
+	SandboxIDs     = Prefix + "sandbox-ids"
+	InlineTemplate = Prefix + "inline-template"
+	Endpoint       = Prefix + "endpoint"
+	Token          = Prefix + "token"
 )
 
 var ReservedKeys = []string{
 	TemplateID,
 	SandboxID,
 	SandboxIDs,
+	InlineTemplate,
 	Endpoint,
 	Token,
 }

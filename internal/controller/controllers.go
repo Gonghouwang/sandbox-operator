@@ -306,14 +306,28 @@ func (r *SandboxTemplateReconciler) deleteTemplateFromOpenAPI(ctx context.Contex
 
 func (r *SandboxReconciler) deleteSandboxFromOpenAPI(ctx context.Context, obj *sandboxv1.Sandbox) error {
 	sandboxID := annotations.Get(obj.Annotations, annotations.SandboxID)
-	if sandboxID == "" || r.Credentials == nil || r.OpenAPI == nil {
+	if r.Credentials == nil || r.OpenAPI == nil {
 		return nil
 	}
 	cred, err := r.Credentials.GetOpenAPI(ctx, obj.Namespace, obj.Spec.OpenAPICredentialRef)
 	if err != nil {
 		return err
 	}
-	err = r.OpenAPI.DeleteSandbox(ctx, mapper.OpenAPICredential(cred), []string{sandboxID})
+	openapiCred := mapper.OpenAPICredential(cred)
+	if sandboxID != "" {
+		err = r.OpenAPI.DeleteSandbox(ctx, openapiCred, []string{sandboxID})
+		if err != nil && !openapi.IsNotFound(err) {
+			return err
+		}
+	}
+	if annotations.Get(obj.Annotations, annotations.InlineTemplate) != "true" {
+		return nil
+	}
+	templateID := annotations.Get(obj.Annotations, annotations.TemplateID)
+	if templateID == "" {
+		return nil
+	}
+	err = r.OpenAPI.DeleteTemplate(ctx, openapiCred, templateID)
 	if openapi.IsNotFound(err) {
 		return nil
 	}

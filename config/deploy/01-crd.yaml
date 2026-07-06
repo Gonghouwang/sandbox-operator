@@ -284,7 +284,6 @@ spec:
           properties:
             spec:
               type: object
-              required: ["templateRef"]
               properties:
                 name:
                   type: string
@@ -295,6 +294,9 @@ spec:
                       type: string
                     name:
                       type: string
+                template:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
                 timeoutSeconds:
                   type: integer
                   minimum: 60

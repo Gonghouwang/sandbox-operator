@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	sandboxv1 "sandbox-operator/api/v1alpha1"
 	"sandbox-operator/internal/credentials"
@@ -308,6 +309,54 @@ func TestApplySandboxAccessURLFromOpenAPI(t *testing.T) {
 
 	if obj.Status.AccessURL == nil || obj.Status.AccessURL.CodeURL != "https://access-url.example.com" {
 		t.Fatalf("sandbox accessUrl was not applied from list response: %#v", obj.Status.AccessURL)
+	}
+}
+
+func TestSandboxInlineTemplateObject(t *testing.T) {
+	obj := &sandboxv1.Sandbox{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "ns-a",
+			Name:      "sandbox-a",
+		},
+		Spec: sandboxv1.SandboxSpec{
+			Name:                 "runtime-a",
+			OpenAPICredentialRef: &sandboxv1.OpenAPICredentialReference{Name: "openapi-cred"},
+			Template: &sandboxv1.SandboxInlineTemplate{
+				Description: "inline description",
+				Type:        "Custom",
+				Access:      "Private",
+				Spec: sandboxv1.RuntimeTemplateSpec{
+					StartCommand: "/start.sh",
+				},
+			},
+		},
+	}
+
+	tpl := SandboxInlineTemplateObject(obj)
+	if tpl == nil {
+		t.Fatalf("inline template object should be built")
+	}
+	if tpl.Namespace != "ns-a" || tpl.Name != "runtime-a-inline-template" {
+		t.Fatalf("inline template metadata mismatch: %s/%s", tpl.Namespace, tpl.Name)
+	}
+	if tpl.Spec.OpenAPICredentialRef == nil || tpl.Spec.OpenAPICredentialRef.Name != "openapi-cred" {
+		t.Fatalf("inline template should inherit openapi credential ref: %#v", tpl.Spec.OpenAPICredentialRef)
+	}
+	if tpl.Spec.Template == nil || tpl.Spec.Template.Spec.StartCommand != "/start.sh" {
+		t.Fatalf("inline runtime template was not copied: %#v", tpl.Spec.Template)
+	}
+}
+
+func TestApplySandboxSpecPreservesInlineTemplateSource(t *testing.T) {
+	obj := &sandboxv1.Sandbox{
+		Spec: sandboxv1.SandboxSpec{
+			Template: &sandboxv1.SandboxInlineTemplate{Type: "Custom", Access: "Private"},
+		},
+	}
+
+	ApplySandboxSpecFromOpenAPI(obj, openapi.Sandbox{TemplateID: "tpl-inline"})
+	if obj.Spec.TemplateRef.ID != "" {
+		t.Fatalf("inline sandbox should not be rewritten to templateRef: %#v", obj.Spec.TemplateRef)
 	}
 }
 

@@ -22,12 +22,21 @@ type SandboxSpec struct {
 	Name                 string                      `json:"name,omitempty"`
 	OpenAPICredentialRef *OpenAPICredentialReference `json:"openapiCredentialRef,omitempty"`
 	ClaimRef             *ClaimReference             `json:"claimRef,omitempty"`
-	TemplateRef          TemplateReference           `json:"templateRef"`
+	TemplateRef          TemplateReference           `json:"templateRef,omitempty"`
+	Template             *SandboxInlineTemplate      `json:"template,omitempty"`
 	TimeoutSeconds       int                         `json:"timeoutSeconds,omitempty"`
 	Env                  []EnvVar                    `json:"env,omitempty"`
 	StorageCredentialRef *LocalObjectReference       `json:"storageCredentialRef,omitempty"`
 	Ks3MountConfig       *MountConfig                `json:"ks3MountConfig,omitempty"`
 	KpfsMountConfig      *MountConfig                `json:"kpfsMountConfig,omitempty"`
+}
+
+type SandboxInlineTemplate struct {
+	Name        string              `json:"name,omitempty"`
+	Description string              `json:"description,omitempty"`
+	Type        string              `json:"type,omitempty"`
+	Access      string              `json:"access,omitempty"`
+	Spec        RuntimeTemplateSpec `json:"spec,omitempty"`
 }
 
 type SandboxStatus struct {

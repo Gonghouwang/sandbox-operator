@@ -55,6 +55,34 @@ func TestValidateTemplateRequiresCompleteKecConfig(t *testing.T) {
 	}
 }
 
+func TestValidateSandboxTemplateSource(t *testing.T) {
+	h := &Handler{}
+	obj := &sandboxv1.Sandbox{}
+	if err := h.validateSandboxTemplateSource(obj); err == nil {
+		t.Fatalf("missing templateRef and inline template should be rejected")
+	}
+
+	obj.Spec.TemplateRef = sandboxv1.TemplateReference{ID: "tpl-1"}
+	if err := h.validateSandboxTemplateSource(obj); err != nil {
+		t.Fatalf("templateRef should be accepted: %v", err)
+	}
+
+	obj.Spec.Template = &sandboxv1.SandboxInlineTemplate{Type: "Custom", Access: "Private"}
+	if err := h.validateSandboxTemplateSource(obj); err == nil {
+		t.Fatalf("templateRef and inline template together should be rejected")
+	}
+
+	obj.Spec.TemplateRef = sandboxv1.TemplateReference{}
+	if err := h.validateSandboxTemplateSource(obj); err != nil {
+		t.Fatalf("inline template should be accepted: %v", err)
+	}
+
+	obj.Spec.Template.Type = ""
+	if err := h.validateSandboxTemplateSource(obj); err == nil {
+		t.Fatalf("inline template without type should be rejected")
+	}
+}
+
 func validTemplateForWebhook() *sandboxv1.SandboxTemplate {
 	return &sandboxv1.SandboxTemplate{
 		ObjectMeta: metav1.ObjectMeta{Name: "test-template"},
