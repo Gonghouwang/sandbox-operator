@@ -71,6 +71,27 @@ func TestValidateTemplateRejectsPublicPool(t *testing.T) {
 	}
 }
 
+func TestValidateTemplateDeleteUsesSyncedCanDelete(t *testing.T) {
+	h := &Handler{}
+	obj := validTemplateForWebhook()
+	obj.Status.CanDelete = false
+
+	if err := h.validateTemplateDelete(nil, obj); err != nil {
+		t.Fatalf("unsynced canDelete=false should not block delete: %v", err)
+	}
+
+	now := metav1.Now()
+	obj.Status.ExternalUpdatedAt = &now
+	if err := h.validateTemplateDelete(nil, obj); err == nil {
+		t.Fatalf("synced canDelete=false should block delete")
+	}
+
+	obj.Status.CanDelete = true
+	if err := h.validateTemplateDelete(nil, obj); err != nil {
+		t.Fatalf("canDelete=true should allow delete: %v", err)
+	}
+}
+
 func TestValidateSandboxTemplateSource(t *testing.T) {
 	h := &Handler{}
 	obj := &sandboxv1.Sandbox{}

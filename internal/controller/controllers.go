@@ -48,7 +48,10 @@ func (r *SandboxTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		if containsString(obj.Finalizers, TemplateFinalizer) {
 			if err := r.deleteTemplateFromOpenAPI(ctx, &obj); err != nil {
 				logger.Error(err, "delete template from openapi failed")
-				return ctrl.Result{}, err
+				if updateErr := r.markTemplateDeleteBlocked(ctx, &obj, err); updateErr != nil {
+					return ctrl.Result{}, updateErr
+				}
+				return ctrl.Result{RequeueAfter: FastRequeue}, nil
 			}
 			obj.Finalizers = removeString(obj.Finalizers, TemplateFinalizer)
 			return ctrl.Result{}, ignoreConflict(r.Update(ctx, &obj))
@@ -316,6 +319,18 @@ func (r *SandboxTemplateReconciler) deleteTemplateFromOpenAPI(ctx context.Contex
 		return nil
 	}
 	return err
+}
+
+func (r *SandboxTemplateReconciler) markTemplateDeleteBlocked(ctx context.Context, obj *sandboxv1.SandboxTemplate, cause error) error {
+	statusBefore := cloneForCompare(obj.Status)
+	obj.Status.CanDelete = false
+	statusutil.SetCondition(&obj.Status.Conditions, sandboxv1.ConditionDeleting, "False", "OpenAPIDeleteBlocked", cause.Error(), obj.Generation)
+	if hasChanged(statusBefore, obj.Status) {
+		if err := r.Status().Update(ctx, obj); err != nil {
+			return ignoreConflict(err)
+		}
+	}
+	return nil
 }
 
 func (r *SandboxReconciler) deleteSandboxFromOpenAPI(ctx context.Context, obj *sandboxv1.Sandbox) error {

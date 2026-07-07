@@ -25,6 +25,7 @@ const (
 	ConditionReady           = "Ready"
 	ConditionSynced          = "Synced"
 	ConditionBound           = "Bound"
+	ConditionDeleting        = "Deleting"
 	ConditionCredentialDrift = "CredentialDrift"
 )
 

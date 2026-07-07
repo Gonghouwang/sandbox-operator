@@ -166,6 +166,13 @@ func (h *Handler) handleTemplate(ctx context.Context, req admission.Request) adm
 		}
 		return admission.Allowed("template updated in openapi")
 	case admissionv1.Delete:
+		var obj sandboxv1.SandboxTemplate
+		if err := h.decodeOld(req, &obj); err != nil {
+			return admission.Errored(http.StatusBadRequest, err)
+		}
+		if err := h.validateTemplateDelete(ctx, &obj); err != nil {
+			return admission.Denied(err.Error())
+		}
 		return admission.Allowed("template deletion handled by finalizer")
 	default:
 		return admission.Allowed("operation ignored")
@@ -467,6 +474,43 @@ func (h *Handler) validateTemplate(obj *sandboxv1.SandboxTemplate) error {
 		}
 	}
 	return nil
+}
+
+func (h *Handler) validateTemplateDelete(ctx context.Context, obj *sandboxv1.SandboxTemplate) error {
+	if templateStatusSynced(obj) && !obj.Status.CanDelete {
+		return fmt.Errorf("template %q cannot be deleted because status.canDelete=false; delete dependent sandboxes first", obj.Name)
+	}
+	templateID := annotations.Get(obj.Annotations, annotations.TemplateID)
+	if templateID == "" || h.Credentials == nil || h.OpenAPI == nil {
+		return nil
+	}
+	cred, err := h.Credentials.GetOpenAPI(ctx, obj.Namespace, obj.Spec.OpenAPICredentialRef)
+	if err != nil {
+		return err
+	}
+	remote, err := h.OpenAPI.GetTemplate(ctx, mapper.OpenAPICredential(cred), templateID)
+	if err != nil {
+		if openapi.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+	if !remote.CanDelete {
+		return fmt.Errorf("template %q cannot be deleted because OpenAPI reports CanDelete=false; delete dependent sandboxes first", obj.Name)
+	}
+	return nil
+}
+
+func templateStatusSynced(obj *sandboxv1.SandboxTemplate) bool {
+	if obj.Status.ExternalUpdatedAt != nil || obj.Status.UpdatedAt != nil || obj.Status.CreatedAt != nil {
+		return true
+	}
+	for _, condition := range obj.Status.Conditions {
+		if condition.Type == sandboxv1.ConditionSynced && condition.Status == "True" {
+			return true
+		}
+	}
+	return false
 }
 
 func (h *Handler) validateNoReservedAnnotations(obj client.Object) error {

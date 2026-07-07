@@ -29,7 +29,7 @@ type SandboxTemplateSpec struct {
 type SandboxTemplateStatus struct {
 	Phase             Phase               `json:"phase,omitempty"`
 	ExternalUpdatedAt *metav1.Time        `json:"externalUpdatedAt,omitempty"`
-	CanDelete         bool                `json:"canDelete,omitempty"`
+	CanDelete         bool                `json:"canDelete"`
 	CredentialDrift   *CredentialDriftSet `json:"credentialDrift,omitempty"`
 	Klog              *KlogStatus         `json:"klog,omitempty"`
 	Quota             *QuotaStatus        `json:"quota,omitempty"`
