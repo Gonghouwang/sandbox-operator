@@ -58,8 +58,8 @@ helm upgrade --install sandbox-operator charts/sandbox-operator \
 Or use the raw manifests:
 
 ```bash
-./scripts/build-image.sh my-registry/sandbox-operator:latest
-IMAGE=my-registry/sandbox-operator:latest ./scripts/deploy.sh
+make docker-build IMG=my-registry/sandbox-operator:latest
+make deploy IMG=my-registry/sandbox-operator:latest
 ```
 
 ### 2. Create OpenAPI credentials in a business namespace
@@ -124,6 +124,7 @@ config/deploy/       Raw manifest deployment files
 config/samples/      Example CRs
 charts/              Helm Chart
 internal/            Controllers, webhooks, OpenAPI client, field mapping
+Makefile             Common development and deployment tasks
 scripts/             Build, deploy, and undeploy scripts
 docs/                User documentation (English and Chinese)
 ```
@@ -133,19 +134,27 @@ docs/                User documentation (English and Chinese)
 Build the manager binary:
 
 ```bash
-go build -o bin/manager ./cmd/manager
+make build
 ```
 
 Run unit tests:
 
 ```bash
-go test ./...
+make test
+```
+
+Run code checks:
+
+```bash
+make vet
+# or
+make lint
 ```
 
 Build the container image:
 
 ```bash
-./scripts/build-image.sh sandbox-operator:latest
+make docker-build IMG=sandbox-operator:latest
 ```
 
 ## Contributing

@@ -17,23 +17,25 @@ Thank you for your interest in contributing to Sandbox Operator! This document e
    ```
 
 2. Make your changes, including tests where appropriate.
-3. Run the test suite and code linters:
+3. Run the test suite and code checks:
 
    ```bash
-   go test ./...
-   go vet ./...
+   make test
+   make vet
+   # or run both formatting and vet checks
+   make lint
    ```
 
 4. Build the manager binary to verify compilation:
 
    ```bash
-   go build -o bin/manager ./cmd/manager
+   make build
    ```
 
 5. Build the container image if your change affects the Dockerfile or runtime behavior:
 
    ```bash
-   ./scripts/build-image.sh sandbox-operator:dev
+   make docker-build IMG=sandbox-operator:dev
    ```
 
 6. Commit your changes with a clear commit message. We follow the [Conventional Commits](https://www.conventionalcommits.org/) style:
@@ -71,7 +73,7 @@ Thank you for your interest in contributing to Sandbox Operator! This document e
 ## Testing
 
 * Add unit tests for new controller, webhook, or client logic.
-* Run `go test ./...` before submitting a PR.
+* Run `make test` before submitting a PR.
 * For integration testing, deploy the operator in a test cluster and exercise the CR workflows.
 
 ## Reporting Issues

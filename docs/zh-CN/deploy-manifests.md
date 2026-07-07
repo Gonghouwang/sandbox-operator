@@ -23,17 +23,17 @@ kubectl apply -f 04-manager.yaml
 kubectl apply -f 05-webhook.yaml
 ```
 
-推荐直接使用脚本：
+推荐直接使用 Makefile 目标：
 
 ```bash
-./scripts/build-image.sh sandbox-operator:latest
-IMAGE=sandbox-operator:latest ./scripts/deploy.sh
+make docker-build IMG=sandbox-operator:latest
+make deploy IMG=sandbox-operator:latest
 ```
 
 卸载：
 
 ```bash
-./scripts/undeploy.sh
+make undeploy
 ```
 
 ## Webhook 证书

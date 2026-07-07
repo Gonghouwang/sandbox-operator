@@ -54,13 +54,13 @@ helm upgrade --install sandbox-operator charts/sandbox-operator \
 Build the image:
 
 ```bash
-./scripts/build-image.sh sandbox-operator:latest
+make docker-build IMG=sandbox-operator:latest
 ```
 
 Deploy:
 
 ```bash
-IMAGE=sandbox-operator:latest ./scripts/deploy.sh
+make deploy IMG=sandbox-operator:latest
 ```
 
 The script performs the following steps:
@@ -74,7 +74,7 @@ The script performs the following steps:
 Uninstall:
 
 ```bash
-./scripts/undeploy.sh
+make undeploy
 ```
 
 ## 4. Operator Configuration

@@ -56,13 +56,13 @@ helm upgrade --install sandbox-operator charts/sandbox-operator \
 构建镜像：
 
 ```bash
-./scripts/build-image.sh sandbox-operator:latest
+make docker-build IMG=sandbox-operator:latest
 ```
 
 部署：
 
 ```bash
-IMAGE=sandbox-operator:latest ./scripts/deploy.sh
+make deploy IMG=sandbox-operator:latest
 ```
 
 脚本会：
@@ -76,7 +76,7 @@ IMAGE=sandbox-operator:latest ./scripts/deploy.sh
 卸载：
 
 ```bash
-./scripts/undeploy.sh
+make undeploy
 ```
 
 ## 4. Operator 配置

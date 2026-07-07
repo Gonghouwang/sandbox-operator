@@ -36,6 +36,19 @@ cmd/manager/         operator 启动入口
 internal/            controller、webhook、OpenAPI client、字段映射
 config/              原生 Kubernetes 部署资源和示例
 charts/              Helm Chart
+Makefile             常用的开发与部署任务入口
 scripts/             构建、部署、卸载脚本
 docs/                用户文档
+```
+
+## 开发常用命令
+
+```bash
+make build          # 编译 manager 二进制
+make test           # 运行单元测试
+make vet            # 运行 go vet
+make lint           # 运行格式化与 vet 检查
+make docker-build   # 构建容器镜像（可通过 IMG= 指定镜像名）
+make deploy         # 使用原生 Manifest 部署（可通过 IMG= 指定镜像名）
+make undeploy       # 卸载原生 Manifest 部署
 ```

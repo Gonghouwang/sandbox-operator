@@ -23,17 +23,17 @@ kubectl apply -f 04-manager.yaml
 kubectl apply -f 05-webhook.yaml
 ```
 
-It is recommended to use the provided scripts instead:
+It is recommended to use the provided targets instead:
 
 ```bash
-./scripts/build-image.sh sandbox-operator:latest
-IMAGE=sandbox-operator:latest ./scripts/deploy.sh
+make docker-build IMG=sandbox-operator:latest
+make deploy IMG=sandbox-operator:latest
 ```
 
 Uninstall:
 
 ```bash
-./scripts/undeploy.sh
+make undeploy
 ```
 
 ## Webhook Certificates
