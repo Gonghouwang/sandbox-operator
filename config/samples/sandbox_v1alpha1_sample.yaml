@@ -7,9 +7,9 @@ metadata:
     sandbox.ksyun.com/credential-type: openapi
 type: Opaque
 stringData:
-  accessKeyId: "AKxxxxxxxx"
-  secretAccessKey: "SKxxxxxxxx"
-  accountId: "2000123456"
+  accessKeyId: "<OPENAPI_ACCESS_KEY_ID>"
+  secretAccessKey: "<OPENAPI_SECRET_ACCESS_KEY>"
+  accountId: "<ACCOUNT_ID>"
   region: "cn-beijing-6"
 ---
 apiVersion: sandbox.kce.ksyun.com/v1alpha1
@@ -102,7 +102,6 @@ metadata:
   name: demo-sandbox
   namespace: sandbox-demo
 spec:
-  name: demo-sandbox
   templateRef:
     name: custom-app
   timeoutSeconds: 1800

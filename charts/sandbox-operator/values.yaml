@@ -2,12 +2,11 @@ namespace: sandbox-operator-system
 createNamespace: false
 
 image:
-  repository: "hub.kce.ksyun.com/sandbox/sandbox-operator"
-  tag: "v20260630-0f7fca74"
+  repository: "sandbox-operator"
+  tag: "latest"
   pullPolicy: IfNotPresent
 
-imagePullSecrets:
-  - name: ksyunregistrykey
+imagePullSecrets: []
 
 config:
   openapiBaseURL: http://aicp.cn-beijing-6.inner.api.ksyun.com

@@ -1,2 +1,26 @@
 sandbox-openapi/
 *.pdf
+
+# Local IDE/editor state
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local env and credentials
+.env
+.env.*
+*.key
+*.pem
+*.crt
+*.kubeconfig
+docs/test.md
+
+# Build/test output
+bin/
+dist/
+coverage.out
+*.test
+
+# Generated packages
+charts/*.tgz

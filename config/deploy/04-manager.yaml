@@ -14,8 +14,6 @@ spec:
         app.kubernetes.io/name: sandbox-operator
     spec:
       serviceAccountName: sandbox-operator
-      imagePullSecrets:
-        - name: ksyunregistrykey
       containers:
         - name: manager
           image: sandbox-operator:latest

@@ -146,9 +146,6 @@ func (r *SandboxClaimReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	if !claim.DeletionTimestamp.IsZero() {
 		if containsString(claim.Finalizers, ClaimFinalizer) {
-			if err := r.deleteClaimSandboxes(ctx, &claim); err != nil {
-				return ctrl.Result{}, err
-			}
 			claim.Finalizers = removeString(claim.Finalizers, ClaimFinalizer)
 			return ctrl.Result{}, ignoreConflict(r.Update(ctx, &claim))
 		}
@@ -361,23 +358,6 @@ func (r *SandboxReconciler) deleteSandboxFromOpenAPI(ctx context.Context, obj *s
 		return nil
 	}
 	return err
-}
-
-func (r *SandboxClaimReconciler) deleteClaimSandboxes(ctx context.Context, claim *sandboxv1.SandboxClaim) error {
-	var sandboxes sandboxv1.SandboxList
-	if err := r.List(ctx, &sandboxes, client.InNamespace(claim.Namespace)); err != nil {
-		return err
-	}
-	for i := range sandboxes.Items {
-		sbx := &sandboxes.Items[i]
-		if sbx.Spec.ClaimRef == nil || sbx.Spec.ClaimRef.Name != claim.Name {
-			continue
-		}
-		if err := r.Delete(ctx, sbx); err != nil && !apierrors.IsNotFound(err) {
-			return err
-		}
-	}
-	return nil
 }
 
 func (r *SandboxClaimReconciler) ensureClaimSandboxes(ctx context.Context, claim *sandboxv1.SandboxClaim) error {

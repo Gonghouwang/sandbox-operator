@@ -1,6 +1,13 @@
 .git
 .idea
+.vscode
 docs
 sandbox-openapi
 Sandbox+Operator设计文档.pdf
 config/samples
+charts/*.tgz
+.env
+.env.*
+*.key
+*.pem
+*.crt
