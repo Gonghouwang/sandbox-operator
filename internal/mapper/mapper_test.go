@@ -158,6 +158,7 @@ func TestTemplateUpdateRequestFromDiffSendsKecSpecChange(t *testing.T) {
 
 func TestTemplatePoolAndObservabilityLiveUnderRuntimeSpec(t *testing.T) {
 	obj := templateWithKS3("description", "/mnt/data")
+	obj.Spec.Access = "Private"
 	obj.Spec.Template.Spec.Pool = &sandboxv1.TemplatePoolSpec{TargetSize: 2}
 	obj.Spec.Template.Spec.Observability = &sandboxv1.ObservabilitySpec{
 		Logging: &sandboxv1.LoggingSpec{Enabled: true},
@@ -197,6 +198,43 @@ func TestTemplatePoolAndObservabilityLiveUnderRuntimeSpec(t *testing.T) {
 	ApplyTemplateStatusFromOpenAPI(&synced, openapi.Template{Status: "Ready"})
 	if synced.Status.Klog != nil {
 		t.Fatalf("status.klog should be cleared during sync: %#v", synced.Status.Klog)
+	}
+}
+
+func TestPublicTemplateDoesNotUsePoolOrPreheat(t *testing.T) {
+	obj := templateWithKS3("description", "/mnt/data")
+	obj.Spec.Access = "Public"
+	obj.Spec.Template.Spec.Pool = &sandboxv1.TemplatePoolSpec{TargetSize: 2}
+
+	createReq := TemplateCreateRequest(obj, RuntimeCredentials{})
+	if createReq.PreheatConfig != nil {
+		t.Fatalf("public template create should not include preheat config: %#v", createReq.PreheatConfig)
+	}
+
+	old := templateWithKS3("description", "/mnt/data")
+	old.Spec.Access = "Public"
+	next := templateWithKS3("description", "/mnt/data")
+	next.Spec.Access = "Public"
+	next.Spec.Template.Spec.Pool = &sandboxv1.TemplatePoolSpec{TargetSize: 3}
+	updateReq := TemplateUpdateRequestFromDiff(next, old, RuntimeCredentials{})
+	if updateReq.PreheatConfig != nil {
+		t.Fatalf("public template update should not include preheat config: %#v", updateReq.PreheatConfig)
+	}
+
+	var synced sandboxv1.SandboxTemplate
+	ApplyTemplateSpecFromOpenAPI(&synced, openapi.Template{
+		TemplateCategory: "Public",
+		PreheatConfig:    &openapi.PreheatConfig{PreheatEnable: true, PreheatNumber: 3, PreheatedInstanceNumber: 2},
+	})
+	if synced.Spec.Template != nil && synced.Spec.Template.Spec.Pool != nil {
+		t.Fatalf("public template sync should not write spec pool: %#v", synced.Spec.Template.Spec.Pool)
+	}
+	ApplyTemplateStatusFromOpenAPI(&synced, openapi.Template{
+		TemplateCategory: "Public",
+		PreheatConfig:    &openapi.PreheatConfig{PreheatEnable: true, PreheatNumber: 3, PreheatedInstanceNumber: 2},
+	})
+	if synced.Status.Preheat != nil {
+		t.Fatalf("public template sync should not write status preheat: %#v", synced.Status.Preheat)
 	}
 }
 

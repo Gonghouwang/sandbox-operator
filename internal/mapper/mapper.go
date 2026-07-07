@@ -154,7 +154,7 @@ func TemplateUpdateRequestFromDiff(in, old *sandboxv1.SandboxTemplate, runtime R
 	if !reflect.DeepEqual(templateObservabilitySpec(inTpl), templateObservabilitySpec(oldTpl)) {
 		req.KlogConfig = full.KlogConfig
 	}
-	if !reflect.DeepEqual(templatePoolSpec(inTpl), templatePoolSpec(oldTpl)) {
+	if !templateAccessIsPublic(in.Spec.Access) && !reflect.DeepEqual(templatePoolSpec(inTpl), templatePoolSpec(oldTpl)) {
 		req.PreheatConfig = full.PreheatConfig
 	}
 	return req
@@ -225,7 +225,11 @@ func ApplyTemplateSpecFromOpenAPI(obj *sandboxv1.SandboxTemplate, remote openapi
 	obj.Spec.Type = displayTemplateType(remote.TemplateType)
 	applyRuntimeSpecFromOpenAPI(obj, remote)
 	tpl := templateSpec(obj.Spec)
-	if remote.TargetPoolSize() > 0 {
+	if templateAccessIsPublic(obj.Spec.Access) {
+		if tpl != nil {
+			tpl.Pool = nil
+		}
+	} else if remote.TargetPoolSize() > 0 {
 		tpl.Pool = &sandboxv1.TemplatePoolSpec{TargetSize: remote.TargetPoolSize()}
 	} else if tpl != nil {
 		tpl.Pool = nil
@@ -244,10 +248,14 @@ func ApplyTemplateStatusFromOpenAPI(obj *sandboxv1.SandboxTemplate, remote opena
 		RemainingInstanceQuota:       remote.RemainingInstanceQuota,
 		RemainingSystemInstanceQuota: remote.RemainingSystemInstanceQuota,
 	}
-	obj.Status.Preheat = &sandboxv1.PreheatStatus{
-		Enabled:                 remote.TargetPoolSize() > 0,
-		Number:                  remote.TargetPoolSize(),
-		PreheatedInstanceNumber: remote.PreheatedInstanceNumber(),
+	if templateAccessIsPublic(displayAccess(remote.TemplateCategory)) {
+		obj.Status.Preheat = nil
+	} else {
+		obj.Status.Preheat = &sandboxv1.PreheatStatus{
+			Enabled:                 remote.TargetPoolSize() > 0,
+			Number:                  remote.TargetPoolSize(),
+			PreheatedInstanceNumber: remote.PreheatedInstanceNumber(),
+		}
 	}
 	if remote.CredentialAccessKeyIDMasked != "" {
 		now := metav1.Now()
@@ -610,6 +618,9 @@ func templateObservabilitySpec(tpl *sandboxv1.RuntimeTemplateSpec) *sandboxv1.Ob
 }
 
 func templatePreheat(spec sandboxv1.SandboxTemplateSpec) *openapi.PreheatConfig {
+	if templateAccessIsPublic(spec.Access) {
+		return nil
+	}
 	if pool := templatePoolSpec(templateSpec(spec)); pool != nil {
 		return &openapi.PreheatConfig{PreheatEnable: pool.TargetSize > 0, PreheatNumber: pool.TargetSize}
 	}
@@ -618,6 +629,10 @@ func templatePreheat(spec sandboxv1.SandboxTemplateSpec) *openapi.PreheatConfig 
 
 func templatePoolInstanceQuota(spec sandboxv1.SandboxTemplateSpec) int {
 	return 0
+}
+
+func templateAccessIsPublic(value string) bool {
+	return strings.EqualFold(value, "Public")
 }
 
 func templateKecConfig(tpl *sandboxv1.RuntimeTemplateSpec) *openapi.KecConfig {

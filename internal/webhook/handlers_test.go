@@ -60,6 +60,17 @@ func TestValidateTemplateRequiresCompleteKecConfig(t *testing.T) {
 	}
 }
 
+func TestValidateTemplateRejectsPublicPool(t *testing.T) {
+	h := &Handler{}
+	obj := validTemplateForWebhook()
+	obj.Spec.Access = "Public"
+	obj.Spec.Template.Spec.Pool = &sandboxv1.TemplatePoolSpec{TargetSize: 1}
+
+	if err := h.validateTemplate(obj); err == nil {
+		t.Fatalf("public template with pool should be rejected")
+	}
+}
+
 func TestValidateSandboxTemplateSource(t *testing.T) {
 	h := &Handler{}
 	obj := &sandboxv1.Sandbox{}

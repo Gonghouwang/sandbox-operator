@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"strings"
 
 	admissionv1 "k8s.io/api/admission/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -452,6 +453,9 @@ func (h *Handler) validateTemplate(obj *sandboxv1.SandboxTemplate) error {
 	}
 	if obj.Spec.Template != nil {
 		tpl := obj.Spec.Template.Spec
+		if templateAccessIsPublic(obj.Spec.Access) && tpl.Pool != nil {
+			return fmt.Errorf("spec.template.spec.pool is not supported when spec.access is Public")
+		}
 		kec := tpl.Kec
 		hasKec := kec != nil && (kec.InstanceType != "" || kec.SystemDiskType != "")
 		hasSystemDisk := tpl.Resources != nil && !tpl.Resources.Disk.IsZero()
@@ -576,6 +580,10 @@ func validateSandboxSpecNameUnset(obj *sandboxv1.Sandbox) error {
 		return fmt.Errorf("spec.name is not supported; use metadata.name as the sandbox name")
 	}
 	return nil
+}
+
+func templateAccessIsPublic(value string) bool {
+	return strings.EqualFold(value, "Public")
 }
 
 func sandboxSpecOnlyTimeoutChanged(oldSpec, newSpec sandboxv1.SandboxSpec) bool {

@@ -29,12 +29,6 @@ spec:
         - name: Phase
           type: string
           jsonPath: .status.phase
-        - name: Target
-          type: integer
-          jsonPath: .status.preheat.number
-        - name: Preheated
-          type: integer
-          jsonPath: .status.preheat.preheatedInstanceNumber
         - name: Updated
           type: date
           jsonPath: .status.externalUpdatedAt
