@@ -6,7 +6,7 @@
 
 > A Kubernetes operator that manages Kingsoft Cloud Sandbox templates and instances through custom resources.
 
-**English** | [中文](docs/zh-CN/README.md)
+**English** | [中文](README.zh-CN.md)
 
 ---
 
@@ -94,7 +94,7 @@ You can also look at the bundled sample in [`config/samples/sandbox_v1alpha1_sam
 | [Usage guide](docs/en/usage.md) | Detailed workflows for OpenAPI↔Kubernetes sync and CR lifecycle. |
 | [CR examples](docs/en/cr-examples.md) | Secret, `SandboxTemplate`, `Sandbox`, inline-template, and `SandboxClaim` YAML examples. |
 | [Raw manifest resources](docs/en/deploy-manifests.md) | File-level explanation of `config/deploy` resources. |
-| [中文文档](docs/zh-CN/README.md) | Simplified Chinese documentation. |
+| [中文 README](README.zh-CN.md) | Simplified Chinese project overview and documentation entry. |
 
 ## Operator Configuration
 

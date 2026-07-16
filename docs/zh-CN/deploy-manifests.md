@@ -49,6 +49,7 @@ make undeploy
 
 `03-config.yaml` 中包含默认 OpenAPI 配置：
 
+- `OPENAPI_BASE_URL=http://aicp.cn-beijing-6.api.ksyun.com`。金山云内部账号可改用 `http://aicp.cn-beijing-6.inner.api.ksyun.com`。
 - `OPENAPI_AUTH_MODE=kop-sigv4`
 - `OPENAPI_SERVICE=aicp`
 - `OPENAPI_VERSION=2026-04-01`

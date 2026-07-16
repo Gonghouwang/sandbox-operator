@@ -1,6 +1,6 @@
 # 部署 Sandbox Operator
 
-
+默认使用公共镜像 `hub.kce.ksyun.com/ksyun-public/sandbox-operator:v20260707`，无需镜像仓库凭据。
 
 ## 快速部署
 
@@ -31,6 +31,50 @@ make deploy
 - 集群可以通过公网访问公共镜像仓库和 Sandbox OpenAPI。
 - Helm 部署需要 `helm` 与 `kubectl`。
 - 原生 Manifest 部署需要 `make`、`bash`、`kubectl` 和 `openssl`。
+- 部署前应确认 `kubectl get namespaces` 可正常执行；安装需要创建 CRD、ClusterRole、ClusterRoleBinding 和 webhook 等集群级资源的权限。
+
+## 在集群外部署
+
+可以在任意已安装 `kubectl` 的机器上部署，不需要登录目标集群节点。将目标集群的 kubeconfig 放入本仓库后，在仓库根目录设置 `KUBECONFIG`：
+
+```bash
+export KUBECONFIG="$PWD/config/kubeconfig.yaml"
+kubectl get namespaces
+make deploy
+```
+
+将 `config/kubeconfig.yaml` 替换为实际文件名。`KUBECONFIG` 会被当前终端中的 `kubectl`、`helm` 和 `make deploy` 自动读取；`make deploy` 启动的部署脚本也会继承该变量。
+
+也可以只对一次部署生效：
+
+```bash
+KUBECONFIG="$PWD/config/kubeconfig.yaml" make deploy
+```
+
+## 使用内网 OpenAPI
+
+金山云内部账号使用内网 OpenAPI 时，Helm 部署追加：
+
+```bash
+helm upgrade --install sandbox-operator charts/sandbox-operator \
+  -n sandbox-operator-system \
+  --create-namespace \
+  --set config.openapiBaseURL=http://aicp.cn-beijing-6.inner.api.ksyun.com
+```
+
+原生 Manifest 部署时，将 [03-config.yaml](../../config/deploy/03-config.yaml) 的 `OPENAPI_BASE_URL` 改为 `http://aicp.cn-beijing-6.inner.api.ksyun.com`，再重新执行 `make deploy`。
+
+## Webhook 证书
+
+Helm 默认生成自签 webhook 证书。若集群已安装 cert-manager，可改由 cert-manager 管理：
+
+```bash
+helm upgrade --install sandbox-operator charts/sandbox-operator \
+  -n sandbox-operator-system \
+  --create-namespace \
+  --set certManager.enabled=true \
+  --set webhook.selfSigned.enabled=false
+```
 
 ## 验证部署
 
@@ -55,8 +99,7 @@ kubectl -n sandbox-demo create secret generic sandbox-openapi-credentials \
   --from-literal=region='cn-beijing-6'
 ```
 
-随后operator会自动将账号下的沙箱、模板资源同步到该命名空间的 `SandboxTemplate`、`Sandbox` 和 `SandboxClaim` CR 中。也可主动创建这些CR，会同步到账号下资源。
-完整 CR 和凭据示例见 [CR 示例](cr-examples.md)。
+随后 operator 会自动将账号下的模板和沙箱实例同步到该命名空间的 `SandboxTemplate` 和 `Sandbox` CR。也可主动创建 `SandboxTemplate`、`Sandbox` 或 `SandboxClaim`；前两者管理对应平台资源，`SandboxClaim` 用于一次性批量创建沙箱实例。完整 CR 和凭据示例见 [CR 示例](cr-examples.md)。
 
 ## 使用自建镜像
 

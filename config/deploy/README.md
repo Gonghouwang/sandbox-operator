@@ -49,6 +49,7 @@ If you replace the webhook certificate manually, you must patch the webhook `caB
 
 `03-config.yaml` contains the default OpenAPI configuration:
 
+- `OPENAPI_BASE_URL=http://aicp.cn-beijing-6.api.ksyun.com`. Ksyun internal accounts can use `http://aicp.cn-beijing-6.inner.api.ksyun.com`.
 - `OPENAPI_AUTH_MODE=kop-sigv4`
 - `OPENAPI_SERVICE=aicp`
 - `OPENAPI_VERSION=2026-04-01`

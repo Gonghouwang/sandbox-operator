@@ -29,6 +29,25 @@ This creates the CRDs, RBAC, ConfigMap, Deployment, and webhook resources; it al
 - The cluster can access the public registry and Sandbox OpenAPI.
 - Helm deployment requires `helm` and `kubectl`.
 - Raw-manifest deployment requires `make`, `bash`, `kubectl`, and `openssl`.
+- Before deployment, make sure `kubectl get namespaces` succeeds. Installation requires cluster-level permission to create CRDs, ClusterRoles, ClusterRoleBindings, and admission webhooks.
+
+## Deploying from Outside the Cluster
+
+Deployment can run from any machine with `kubectl`; logging into a target cluster node is not required. Place the target cluster kubeconfig in this repository, then set `KUBECONFIG` from the repository root:
+
+```bash
+export KUBECONFIG="$PWD/config/kubeconfig.yaml"
+kubectl get namespaces
+make deploy
+```
+
+Replace `config/kubeconfig.yaml` with the actual file name. `kubectl`, `helm`, and `make deploy` in the current terminal automatically use `KUBECONFIG`; the deployment script started by `make deploy` inherits it as well.
+
+To apply it to one deployment only:
+
+```bash
+KUBECONFIG="$PWD/config/kubeconfig.yaml" make deploy
+```
 
 ## Internal OpenAPI Endpoint
 
@@ -78,7 +97,7 @@ kubectl -n sandbox-demo create secret generic sandbox-openapi-credentials \
   --from-literal=region='cn-beijing-6'
 ```
 
-See [CR examples](cr-examples.md) for complete resource and credential examples.
+The operator then synchronizes templates and sandbox instances in the account into `SandboxTemplate` and `Sandbox` CRs in this namespace. You can also create `SandboxTemplate`, `Sandbox`, or `SandboxClaim` yourself: the first two manage their corresponding platform resources, while `SandboxClaim` is a one-shot batch declaration for sandbox instances. See [CR examples](cr-examples.md) for complete resource and credential examples.
 
 ## Custom Image
 
