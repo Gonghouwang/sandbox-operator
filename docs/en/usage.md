@@ -79,6 +79,8 @@ The following field mapping applies:
 | deletable flag | `status.canDelete` |
 | preheat pool status | `status.preheat` |
 
+When `spec.template.spec.networkConfig` is omitted or set to `{}`, the operator calls OpenAPI with public access only and `SharedInternetAccessEnable=true`.
+
 CRs synced from OpenAPI do not automatically create or write back Kubernetes Secrets. Image registry, KS3, KPFS, Klog, and other credentials are not reverse-generated from OpenAPI. If you later need to modify image or mount-related fields in the cluster, create the corresponding Secrets in the same namespace and add `registryCredentialRef` or `storageCredentialRef` to the CR.
 
 ### 2.3 Sandbox instance sync

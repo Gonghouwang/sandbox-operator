@@ -93,9 +93,11 @@ type TemplateEnvVar struct {
 }
 
 type OpenAPINetworkConfig struct {
-	EnablePublic               bool   `json:"enablePublic,omitempty"`
-	EnablePrivate              bool   `json:"enablePrivate,omitempty"`
-	CIDRBlock                  string `json:"cidrBlock,omitempty"`
+	EnablePublic  bool   `json:"enablePublic,omitempty"`
+	EnablePrivate bool   `json:"enablePrivate,omitempty"`
+	CIDRBlock     string `json:"cidrBlock,omitempty"`
+	// SharedInternetAccessEnable is normalized to true for public-only networks
+	// and false for private-only networks before calling the OpenAPI.
 	SharedInternetAccessEnable bool   `json:"sharedInternetAccessEnable,omitempty"`
 	UserVpcID                  string `json:"userVpcId,omitempty"`
 	UserSgID                   string `json:"userSgId,omitempty"`

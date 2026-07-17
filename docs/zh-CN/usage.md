@@ -79,6 +79,7 @@ kubectl get stpl -n sandbox-demo <template-name> -o yaml
 | 是否可删除 | `status.canDelete` |
 | 预热池状态 | `status.preheat` |
 
+省略 `spec.template.spec.networkConfig` 或将其配置为 `{}` 时，Operator 调用 OpenAPI 会默认仅启用公网访问，并设置 `SharedInternetAccessEnable=true`。
 
 从 OpenAPI 同步回来的 CR 不会自动创建或回写 Kubernetes Secret。也就是说，镜像仓库、KS3、KPFS、Klog 等凭据不会从 OpenAPI 反向生成 Secret。如果后续要在集群内修改镜像或挂载相关字段，需要先在同命名空间创建相应 Secret，并在 CR 中补充 `registryCredentialRef` 或 `storageCredentialRef`。
 

@@ -141,6 +141,60 @@ func TestTemplateCreateRequestSendsKecInstanceSpecs(t *testing.T) {
 	}
 }
 
+func TestTemplateNetworkDefaultsSharedInternetForSingleNetwork(t *testing.T) {
+	cases := []struct {
+		name          string
+		networkConfig *sandboxv1.OpenAPINetworkConfig
+		wantPublic    bool
+		wantPrivate   bool
+		wantShared    bool
+	}{
+		{
+			name:       "omitted network configuration defaults to public access",
+			wantPublic: true,
+			wantShared: true,
+		},
+		{
+			name:          "empty network configuration defaults to public access",
+			networkConfig: &sandboxv1.OpenAPINetworkConfig{},
+			wantPublic:    true,
+			wantShared:    true,
+		},
+		{
+			name:          "public only defaults shared internet to enabled",
+			networkConfig: &sandboxv1.OpenAPINetworkConfig{EnablePublic: true},
+			wantPublic:    true,
+			wantShared:    true,
+		},
+		{
+			name:          "private only defaults shared internet to disabled",
+			networkConfig: &sandboxv1.OpenAPINetworkConfig{EnablePrivate: true, SharedInternetAccessEnable: true},
+			wantPrivate:   true,
+			wantShared:    false,
+		},
+		{
+			name:          "dual network keeps explicit shared internet setting",
+			networkConfig: &sandboxv1.OpenAPINetworkConfig{EnablePublic: true, EnablePrivate: true},
+			wantPublic:    true,
+			wantPrivate:   true,
+			wantShared:    false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			network := templateNetwork(&sandboxv1.RuntimeTemplateSpec{
+				NetworkConfig: tc.networkConfig,
+			})
+			if network == nil || network.PublicNetworkEnable != tc.wantPublic ||
+				network.PrivateNetworkEnable != tc.wantPrivate ||
+				network.SharedInternetAccessEnable != tc.wantShared {
+				t.Fatalf("network config = %#v, want public=%t private=%t shared=%t", network, tc.wantPublic, tc.wantPrivate, tc.wantShared)
+			}
+		})
+	}
+}
+
 func TestTemplateUpdateRequestFromDiffSendsKecInstanceSpecChange(t *testing.T) {
 	old := templateWithKS3("old description", "/mnt/old")
 	old.Spec.Template.Spec.KecConfig = &sandboxv1.RuntimeKecConfig{

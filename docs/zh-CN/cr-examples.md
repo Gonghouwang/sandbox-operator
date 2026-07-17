@@ -202,6 +202,7 @@ spec:
             readOnly: true
 
       # 网络配置。
+      # 省略 networkConfig 或配置为 {} 时，Operator 默认只启用公网访问。
       networkConfig:
         enablePublic: true
         enablePrivate: true
@@ -454,6 +455,7 @@ spec:
             readOnly: true
 
       networkConfig:
+        # 省略 networkConfig 或配置为 {} 时，Operator 默认只启用公网访问。
         enablePublic: true
         enablePrivate: true
         cidrBlock: "10.0.2.0/24"

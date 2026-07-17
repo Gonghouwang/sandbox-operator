@@ -203,6 +203,7 @@ spec:
             readOnly: true
 
       # Network configuration.
+      # When networkConfig is omitted or set to {}, the operator enables public access only.
       networkConfig:
         enablePublic: true
         enablePrivate: true
@@ -455,6 +456,7 @@ spec:
             readOnly: true
 
       networkConfig:
+        # When networkConfig is omitted or set to {}, the operator enables public access only.
         enablePublic: true
         enablePrivate: true
         cidrBlock: "10.0.2.0/24"

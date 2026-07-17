@@ -523,14 +523,24 @@ func templateEnvSpec(tpl *sandboxv1.RuntimeTemplateSpec) []sandboxv1.TemplateEnv
 }
 
 func templateNetwork(tpl *sandboxv1.RuntimeTemplateSpec) *openapi.NetworkConfig {
-	if tpl == nil || tpl.NetworkConfig == nil {
-		return nil
+	if tpl == nil || tpl.NetworkConfig == nil || *tpl.NetworkConfig == (sandboxv1.OpenAPINetworkConfig{}) {
+		// OpenAPI requires explicit shared internet access for public-only networking.
+		return &openapi.NetworkConfig{
+			PublicNetworkEnable:        true,
+			SharedInternetAccessEnable: true,
+		}
 	}
 	in := tpl.NetworkConfig
+	sharedInternetAccessEnable := in.SharedInternetAccessEnable
+	if in.EnablePublic && !in.EnablePrivate {
+		sharedInternetAccessEnable = true
+	} else if !in.EnablePublic && in.EnablePrivate {
+		sharedInternetAccessEnable = false
+	}
 	return &openapi.NetworkConfig{
 		PublicNetworkEnable:        in.EnablePublic,
 		PrivateNetworkEnable:       in.EnablePrivate,
-		SharedInternetAccessEnable: in.SharedInternetAccessEnable,
+		SharedInternetAccessEnable: sharedInternetAccessEnable,
 		VPCConfiguration: &openapi.VPCConfig{
 			VPCID:            in.UserVpcID,
 			SubnetID:         in.UserSubnetID,
