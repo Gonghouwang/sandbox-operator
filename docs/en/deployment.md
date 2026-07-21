@@ -79,7 +79,13 @@ helm upgrade --install sandbox-operator charts/sandbox-operator \
   --set config.openapiBaseURL=http://aicp.cn-beijing-6.inner.api.ksyun.com
 ```
 
-For raw manifests, change `OPENAPI_BASE_URL` in [03-config.yaml](../../config/deploy/03-config.yaml) to `http://aicp.cn-beijing-6.inner.api.ksyun.com`, then run `make deploy` again.
+For raw manifests, override the deployment variable without changing a file:
+
+```bash
+make deploy OPENAPI_BASE_URL=http://aicp.cn-beijing-6.inner.api.ksyun.com
+```
+
+Repeating this command rolls the operator so the new ConfigMap endpoint takes effect immediately.
 
 ## Webhook Certificates
 

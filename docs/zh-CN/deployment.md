@@ -81,7 +81,13 @@ helm upgrade --install sandbox-operator charts/sandbox-operator \
   --set config.openapiBaseURL=http://aicp.cn-beijing-6.inner.api.ksyun.com
 ```
 
-原生 Manifest 部署时，将 [03-config.yaml](../../config/deploy/03-config.yaml) 的 `OPENAPI_BASE_URL` 改为 `http://aicp.cn-beijing-6.inner.api.ksyun.com`，再重新执行 `make deploy`。
+原生 Manifest 部署时直接覆盖部署变量，无需修改文件：
+
+```bash
+make deploy OPENAPI_BASE_URL=http://aicp.cn-beijing-6.inner.api.ksyun.com
+```
+
+重复执行该命令会滚动重启 operator，使新的 ConfigMap 地址立即生效。
 
 ## Webhook 证书
 

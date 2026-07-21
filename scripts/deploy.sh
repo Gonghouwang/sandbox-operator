@@ -6,6 +6,7 @@ IMAGE_PULL_SECRET="${IMAGE_PULL_SECRET:-}"
 NAMESPACE="${NAMESPACE:-sandbox-operator-system}"
 SERVICE_NAME="${SERVICE_NAME:-sandbox-operator-webhook}"
 TLS_SECRET="${TLS_SECRET:-sandbox-operator-webhook-server-cert}"
+OPENAPI_BASE_URL="${OPENAPI_BASE_URL:-http://aicp.cn-beijing-6.api.ksyun.com}"
 
 require() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -22,7 +23,12 @@ validate_namespace() {
 }
 
 render_manifest() {
-  sed "s|sandbox-operator-system|${NAMESPACE}|g" "$1"
+  local escaped_openapi_base_url
+  escaped_openapi_base_url="$(printf '%s' "${OPENAPI_BASE_URL}" | sed 's/[\\&|]/\\\\&/g')"
+  sed \
+    -e "s|sandbox-operator-system|${NAMESPACE}|g" \
+    -e "s|http://aicp.cn-beijing-6.api.ksyun.com|${escaped_openapi_base_url}|g" \
+    "$1"
 }
 
 apply_manifest() {
@@ -100,4 +106,7 @@ if [[ -n "${IMAGE_PULL_SECRET}" ]]; then
 fi
 apply_manifest config/deploy/05-webhook.yaml
 patch_webhook_ca_bundle
+# ConfigMap values are consumed as container environment variables. Restart so a
+# repeated deployment applies an overridden OpenAPI endpoint immediately.
+kubectl -n "${NAMESPACE}" rollout restart deployment/sandbox-operator
 kubectl -n "${NAMESPACE}" rollout status deployment/sandbox-operator

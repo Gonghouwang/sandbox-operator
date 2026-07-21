@@ -9,6 +9,8 @@ IMG ?= hub.kce.ksyun.com/ksyun-public/sandbox-operator:v20260707
 NAMESPACE ?= sandbox-operator-system
 # Optional image pull Secret used by the raw-manifest deploy target.
 IMAGE_PULL_SECRET ?=
+# Sandbox OpenAPI endpoint used by the raw-manifest deploy target.
+OPENAPI_BASE_URL ?= http://aicp.cn-beijing-6.api.ksyun.com
 
 # Go build settings
 GOOS ?= linux
@@ -54,7 +56,7 @@ docker-push: ## Push the container image.
 ##@ Deployment
 
 deploy: ## Deploy the operator to the cluster using raw manifests.
-	IMAGE=$(IMG) IMAGE_PULL_SECRET=$(IMAGE_PULL_SECRET) NAMESPACE=$(NAMESPACE) ./scripts/deploy.sh
+	IMAGE=$(IMG) IMAGE_PULL_SECRET=$(IMAGE_PULL_SECRET) NAMESPACE=$(NAMESPACE) OPENAPI_BASE_URL=$(OPENAPI_BASE_URL) ./scripts/deploy.sh
 
 undeploy: ## Undeploy the operator from the cluster.
 	NAMESPACE=$(NAMESPACE) ./scripts/undeploy.sh
