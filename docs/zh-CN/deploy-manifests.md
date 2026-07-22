@@ -44,6 +44,14 @@ make deploy IMG=my-registry.example.com/sandbox-operator:v0.1.0 IMAGE_PULL_SECRE
 make undeploy
 ```
 
+该命令只删除 Operator 的 Deployment、Webhook、RBAC、ConfigMap 和命名空间；会保留 CRD 及业务命名空间中的 CR，避免在 Controller 已停止后触发 CRD 级联删除并卡住。
+
+如需彻底删除 CRD，先在 Operator 仍运行时删除全部 `SandboxTemplate`、`Sandbox` 和 `SandboxClaim`，等待其 finalizer 完成后执行：
+
+```bash
+make purge-crds
+```
+
 ## Webhook 证书
 
 原生 manifest 部署不依赖 cert-manager。`scripts/deploy.sh` 会：

@@ -42,6 +42,12 @@ Uninstall:
 make undeploy
 ```
 
+The command preserves CRDs and existing Sandbox CRs. To remove CRDs, first delete all Sandbox CRs while the Operator is running and wait for their finalizers to complete, then run:
+
+```bash
+make purge-crds
+```
+
 ## Webhook Certificates
 
 Raw manifest deployment does not require cert-manager. `scripts/deploy.sh`:

@@ -183,4 +183,6 @@ helm uninstall sandbox-operator -n sandbox-operator-system
 make undeploy
 ```
 
+原生 Manifest 的 `make undeploy` 会保留 CRD 和业务 CR。若要删除 CRD，应先在 Operator 运行期间删除全部 `SandboxTemplate`、`Sandbox`、`SandboxClaim` 并等待完成，再执行 `make purge-crds`。
+
 原生 Manifest 文件和 webhook 证书处理细节见 [原生 Kubernetes 部署资源](deploy-manifests.md)。

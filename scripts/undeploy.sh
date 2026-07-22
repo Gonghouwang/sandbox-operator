@@ -19,5 +19,6 @@ delete_manifest config/deploy/05-webhook.yaml
 delete_manifest config/deploy/04-manager.yaml
 delete_manifest config/deploy/03-config.yaml
 delete_manifest config/deploy/02-rbac.yaml
-delete_manifest config/deploy/01-crd.yaml
+# Preserve CRDs and their business resources. Deleting a CRD while CRs still
+# carry operator finalizers can block CRD cleanup after the controller is gone.
 delete_manifest config/deploy/00-namespace.yaml

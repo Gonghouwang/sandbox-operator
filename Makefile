@@ -20,7 +20,7 @@ GOARCH ?= amd64
 MANAGER_BIN ?= bin/manager
 
 # Silence make output slightly and enable real paths in error messages.
-.PHONY: all help build test vet fmt lint docker-build docker-push deploy undeploy clean
+.PHONY: all help build test vet fmt lint docker-build docker-push deploy undeploy purge-crds clean
 
 all: build
 
@@ -60,6 +60,9 @@ deploy: ## Deploy the operator to the cluster using raw manifests.
 
 undeploy: ## Undeploy the operator from the cluster.
 	NAMESPACE=$(NAMESPACE) ./scripts/undeploy.sh
+
+purge-crds: ## Delete the operator CRDs after all Sandbox CRs have been removed.
+	./scripts/purge-crds.sh
 
 ##@ Cleanup
 

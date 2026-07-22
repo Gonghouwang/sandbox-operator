@@ -4,7 +4,7 @@ metadata:
   name: sandbox-operator-config
   namespace: sandbox-operator-system
 data:
-  # 金山云内部账号可使用内网地址：http://aicp.cn-beijing-6.inner.api.ksyun.com
+  # 内网地址：http://aicp.cn-beijing-6.inner.api.ksyun.com
   OPENAPI_BASE_URL: "http://aicp.cn-beijing-6.api.ksyun.com"
   OPENAPI_AUTH_MODE: "kop-sigv4"
   OPENAPI_SERVICE: "aicp"

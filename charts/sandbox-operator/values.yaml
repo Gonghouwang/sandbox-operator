@@ -11,7 +11,7 @@ image:
 imagePullSecrets: []
 
 config:
-  # 金山云内部账号可改用内网地址：http://aicp.cn-beijing-6.inner.api.ksyun.com
+  # 内网地址：http://aicp.cn-beijing-6.inner.api.ksyun.com
   openapiBaseURL: http://aicp.cn-beijing-6.api.ksyun.com
   openapiAuthMode: kop-sigv4
   openapiService: aicp

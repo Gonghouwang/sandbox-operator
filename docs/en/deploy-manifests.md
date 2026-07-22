@@ -48,6 +48,14 @@ Uninstall:
 make undeploy
 ```
 
+This removes the Operator Deployment, webhooks, RBAC, ConfigMap, and namespace, but preserves CRDs and CRs in business namespaces. This avoids blocking CRD cascading cleanup after the controller has stopped.
+
+To remove CRDs completely, first delete all `SandboxTemplate`, `Sandbox`, and `SandboxClaim` resources while the Operator is still running and wait for their finalizers to finish. Then run:
+
+```bash
+make purge-crds
+```
+
 ## Webhook Certificates
 
 Raw manifest deployment does not require cert-manager. `scripts/deploy.sh`:

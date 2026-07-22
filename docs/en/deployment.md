@@ -180,4 +180,6 @@ helm uninstall sandbox-operator -n sandbox-operator-system
 make undeploy
 ```
 
+`make undeploy` for raw manifests preserves CRDs and business CRs. To remove CRDs, delete all `SandboxTemplate`, `Sandbox`, and `SandboxClaim` resources while the Operator is running and wait for completion, then run `make purge-crds`.
+
 See [raw manifest resources](deploy-manifests.md) for manifest and webhook certificate details.
